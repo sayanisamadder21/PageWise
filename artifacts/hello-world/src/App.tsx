@@ -146,17 +146,26 @@ export default function PageWise() {
     setUploading(false);
   };
 
-  const callGemini = async (question: string, context: string) => {
+  const callGemini = async (question: string, context: string): Promise<string> => {
     const fullPrompt = currentP.sys + "\n\nDocument Content:\n" + context + "\n\nUser Question: " + question;
-    const response = await fetch(PROXY_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: fullPrompt }] }]
-      })
-    });
-    const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
+    const doFetch = async () => {
+      const response = await fetch(PROXY_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: fullPrompt }] }]
+        })
+      });
+      const data = await response.json();
+      return data.candidates?.[0]?.content?.parts?.[0]?.text as string | undefined;
+    };
+
+    let result = await doFetch();
+    if (!result) {
+      await new Promise(res => setTimeout(res, 2000));
+      result = await doFetch();
+    }
+    return result || "No response generated.";
   };
 
   const send = async (text?: string) => {
@@ -195,7 +204,13 @@ export default function PageWise() {
       const qs    = JSON.parse(clean);
       setSmartQs(Array.isArray(qs) ? qs.slice(0, 5) : []);
     } catch (e) {
-      setSmartQs(["What is the main topic?", "What are the key conclusions?", "What action is recommended?"]);
+      setSmartQs([
+        "What is the main purpose of this document?",
+        "What are the key obligations mentioned?",
+        "Are there any deadlines or dates?",
+        "What risks are identified?",
+        "What action should I take after reading this?",
+      ]);
     }
     setLoadingQs(false);
   };
