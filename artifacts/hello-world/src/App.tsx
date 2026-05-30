@@ -103,6 +103,7 @@ export default function PageWise() {
   const [dragOver, setDragOver]   = useState(false);
   const [showHints, setShowHints] = useState(true);
   const [copied, setCopied]       = useState<number | null>(null);
+  const [language, setLanguage]   = useState("English");
   const [uploading, setUploading] = useState(false);
   const [smartQs, setSmartQs]     = useState<string[]>([]);
   const [loadingQs, setLoadingQs] = useState(false);
@@ -147,7 +148,8 @@ export default function PageWise() {
   };
 
   const callGemini = async (question: string, context: string): Promise<string> => {
-    const fullPrompt = currentP.sys + "\n\nDocument Content:\n" + context + "\n\nUser Question: " + question;
+    const langInstruction = language !== "English" ? `\nAlways respond in ${language}.` : "";
+    const fullPrompt = currentP.sys + langInstruction + "\n\nDocument Content:\n" + context + "\n\nUser Question: " + question;
     const doFetch = async () => {
       const response = await fetch(PROXY_URL, {
         method: "POST",
@@ -221,9 +223,23 @@ export default function PageWise() {
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const fmt = (t: string) => t
-    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-    .replace(/\n/g, "<br/>");
+  const fmt = (t: string) => {
+    return t
+      .split("\n")
+      .map(line => {
+        line = line
+          .replace(/^##\s+(.+)$/, "<div style='font-size:1.15em;font-weight:700;margin:6px 0 2px'>$1</div>")
+          .replace(/^###\s+(.+)$/, "<div style='font-size:1.05em;font-weight:700;margin:4px 0 2px'>$1</div>");
+        if (/^[-*]\s/.test(line)) {
+          line = "<div style='display:flex;gap:6px;margin:2px 0'><span style='color:#d97706;flex-shrink:0'>•</span><span>" + line.replace(/^[-*]\s/, "") + "</span></div>";
+        }
+        line = line
+          .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+          .replace(/\*(.*?)\*/g, "<em>$1</em>");
+        return line;
+      })
+      .join("<br/>");
+  };
 
   return (
     <div style={{
@@ -357,11 +373,24 @@ export default function PageWise() {
                     lineHeight: 1.75,
                   }} dangerouslySetInnerHTML={{ __html: fmt(msg.text) }} />
                   {msg.role === "assistant" && (
-                    <button className="cp" onClick={() => copy(msg.text, i)} style={{
-                      position: "absolute", top: 6, right: -28,
-                      background: "transparent", border: "none", cursor: "pointer",
-                      fontSize: 12, opacity: 0.3, transition: "opacity 0.15s", color: "#92400e",
-                    }}>{copied === i ? "ok" : "cp"}</button>
+                    <button className="cp" onClick={() => copy(msg.text, i)} title="Copy response" style={{
+                      position: "absolute", top: 6, right: -34,
+                      background: copied === i ? "#fef3c7" : "transparent",
+                      border: copied === i ? "1px solid #d97706" : "1px solid transparent",
+                      borderRadius: 6, cursor: "pointer",
+                      padding: "3px 6px", opacity: copied === i ? 1 : 0.35,
+                      transition: "all 0.15s", color: "#92400e",
+                      display: "flex", alignItems: "center", gap: 3,
+                      fontSize: 10, fontFamily: "monospace", whiteSpace: "nowrap",
+                    }}>
+                      {copied === i ? (
+                        "✓ Copied!"
+                      ) : (
+                        <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                      )}
+                    </button>
                   )}
                 </div>
                 {msg.role === "user" && (
@@ -473,6 +502,24 @@ export default function PageWise() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Language selector */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <span style={{ fontSize: 9, color: "#c9b99a", letterSpacing: 3, textTransform: "uppercase", fontFamily: "monospace", flexShrink: 0 }}>Lang</span>
+              <select
+                value={language}
+                onChange={e => setLanguage(e.target.value)}
+                style={{
+                  background: "#faf7f2", border: "1px solid #e8dfc8", borderRadius: 8,
+                  padding: "4px 8px", fontSize: 11, color: "#78350f",
+                  fontFamily: "monospace", cursor: "pointer", outline: "none",
+                }}
+              >
+                {["English","Hindi","Bengali","Tamil","Telugu","Marathi","Spanish","French","German","Portuguese","Arabic","Japanese","Korean","Chinese (Simplified)"].map(l => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
             </div>
 
             {/* Input row */}
