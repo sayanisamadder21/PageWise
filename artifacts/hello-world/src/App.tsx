@@ -224,21 +224,27 @@ export default function PageWise() {
   };
 
   const fmt = (t: string) => {
-    return t
-      .split("\n")
-      .map(line => {
-        line = line
-          .replace(/^##\s+(.+)$/, "<div style='font-size:1.15em;font-weight:700;margin:6px 0 2px'>$1</div>")
-          .replace(/^###\s+(.+)$/, "<div style='font-size:1.05em;font-weight:700;margin:4px 0 2px'>$1</div>");
-        if (/^[-*]\s/.test(line)) {
-          line = "<div style='display:flex;gap:6px;margin:2px 0'><span style='color:#d97706;flex-shrink:0'>•</span><span>" + line.replace(/^[-*]\s/, "") + "</span></div>";
-        }
-        line = line
-          .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-          .replace(/\*(.*?)\*/g, "<em>$1</em>");
-        return line;
-      })
-      .join("<br/>");
+    const lines = t.split("\n");
+    return lines.map(raw => {
+      let line = raw
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, "<em>$1</em>");
+
+      if (/^##\s/.test(raw)) {
+        const inner = line.replace(/^##\s+/, "");
+        return `<div style="font-size:18px;font-weight:700;color:#1c1208;margin:10px 0 4px;line-height:1.3">${inner}</div>`;
+      }
+      if (/^###\s/.test(raw)) {
+        const inner = line.replace(/^###\s+/, "");
+        return `<div style="font-size:15px;font-weight:700;color:#1c1208;margin:8px 0 3px;line-height:1.3">${inner}</div>`;
+      }
+      if (/^[-*]\s/.test(raw)) {
+        const inner = line.replace(/^[-*]\s+/, "");
+        return `<div style="display:flex;gap:8px;margin:3px 0;padding-left:4px"><span style="color:#d97706;font-weight:bold;flex-shrink:0;margin-top:1px">•</span><span>${inner}</span></div>`;
+      }
+      if (line.trim() === "") return `<div style="height:6px"></div>`;
+      return `<span>${line}</span><br/>`;
+    }).join("");
   };
 
   return (
@@ -373,22 +379,25 @@ export default function PageWise() {
                     lineHeight: 1.75,
                   }} dangerouslySetInnerHTML={{ __html: fmt(msg.text) }} />
                   {msg.role === "assistant" && (
-                    <button className="cp" onClick={() => copy(msg.text, i)} title="Copy response" style={{
-                      position: "absolute", top: 6, right: -34,
-                      background: copied === i ? "#fef3c7" : "transparent",
-                      border: copied === i ? "1px solid #d97706" : "1px solid transparent",
-                      borderRadius: 6, cursor: "pointer",
-                      padding: "3px 6px", opacity: copied === i ? 1 : 0.35,
-                      transition: "all 0.15s", color: "#92400e",
-                      display: "flex", alignItems: "center", gap: 3,
-                      fontSize: 10, fontFamily: "monospace", whiteSpace: "nowrap",
+                    <button onClick={() => copy(msg.text, i)} style={{
+                      marginTop: 5, alignSelf: "flex-start",
+                      background: copied === i ? "#d97706" : "#fff",
+                      border: "1.5px solid #d97706",
+                      borderRadius: 7, cursor: "pointer",
+                      padding: "4px 10px",
+                      transition: "all 0.15s", color: copied === i ? "#fff" : "#d97706",
+                      display: "flex", alignItems: "center", gap: 5,
+                      fontSize: 11, fontFamily: "monospace", fontWeight: 600,
                     }}>
                       {copied === i ? (
                         "✓ Copied!"
                       ) : (
-                        <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                        </svg>
+                        <>
+                          <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                          </svg>
+                          Copy
+                        </>
                       )}
                     </button>
                   )}
@@ -476,7 +485,7 @@ export default function PageWise() {
           {/* Bottom toolbar */}
           <div style={{ background: "#fff", borderTop: "1px solid #e8dfc8", padding: "10px 16px 14px", flexShrink: 0 }}>
 
-            {/* Mode switcher */}
+            {/* Mode switcher + Language selector */}
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
               <span style={{ fontSize: 9, color: "#c9b99a", letterSpacing: 3, textTransform: "uppercase", fontFamily: "monospace", flexShrink: 0 }}>Mode</span>
               <div style={{ display: "flex", gap: 4, flex: 1, flexWrap: "nowrap", overflowX: "auto" }}>
@@ -502,24 +511,22 @@ export default function PageWise() {
                   </button>
                 ))}
               </div>
-            </div>
-
-            {/* Language selector */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-              <span style={{ fontSize: 9, color: "#c9b99a", letterSpacing: 3, textTransform: "uppercase", fontFamily: "monospace", flexShrink: 0 }}>Lang</span>
-              <select
-                value={language}
-                onChange={e => setLanguage(e.target.value)}
-                style={{
-                  background: "#faf7f2", border: "1px solid #e8dfc8", borderRadius: 8,
-                  padding: "4px 8px", fontSize: 11, color: "#78350f",
-                  fontFamily: "monospace", cursor: "pointer", outline: "none",
-                }}
-              >
-                {["English","Hindi","Bengali","Tamil","Telugu","Marathi","Spanish","French","German","Portuguese","Arabic","Japanese","Korean","Chinese (Simplified)"].map(l => (
-                  <option key={l} value={l}>{l}</option>
-                ))}
-              </select>
+              <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                <span style={{ fontSize: 9, color: "#c9b99a", letterSpacing: 2, textTransform: "uppercase", fontFamily: "monospace" }}>Lang</span>
+                <select
+                  value={language}
+                  onChange={e => setLanguage(e.target.value)}
+                  style={{
+                    background: "#faf7f2", border: "1px solid #e8dfc8", borderRadius: 7,
+                    padding: "4px 6px", fontSize: 11, color: "#78350f",
+                    fontFamily: "monospace", cursor: "pointer", outline: "none", maxWidth: 100,
+                  }}
+                >
+                  {["English","Hindi","Bengali","Tamil","Telugu","Marathi","Spanish","French","German","Portuguese","Arabic","Japanese","Korean","Chinese (Simplified)"].map(l => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Input row */}
