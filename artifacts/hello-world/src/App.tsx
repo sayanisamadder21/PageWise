@@ -2,6 +2,44 @@ import { useState, useRef, useEffect } from "react";
 
 const wordmark = "/wordmark.png";
 
+function SplashScreen({ visible }: { visible: boolean }) {
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999,
+      background: "#1A150F",
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center", gap: 24,
+      opacity: visible ? 1 : 0,
+      pointerEvents: visible ? "all" : "none",
+      transition: "opacity 0.6s ease",
+    }}>
+      <style>{`
+        @keyframes splashPulse {
+          0%, 100% { transform: scale(1); opacity: 0.9; }
+          50%       { transform: scale(1.06); opacity: 1; }
+        }
+      `}</style>
+      <img
+        src="/icon-512.png"
+        alt="PageWise icon"
+        style={{ width: 96, height: 96, borderRadius: 22, animation: "splashPulse 1.8s ease-in-out infinite" }}
+      />
+      <img
+        src="/wordmark.png"
+        alt="PageWise"
+        style={{ height: 44, objectFit: "contain", opacity: 0.95 }}
+      />
+      <p style={{
+        fontFamily: "'Montserrat', sans-serif",
+        fontSize: 11, fontWeight: 700, letterSpacing: 4,
+        color: "#FF8A00", textTransform: "uppercase", marginTop: -8,
+      }}>
+        Five Modes. One Insight.
+      </p>
+    </div>
+  );
+}
+
 const PROXY_URL = "https://plain-firefly-95a9.sayanisamadder345.workers.dev/v1beta/models/gemini-2.5-flash:generateContent";
 
 const C = {
@@ -120,6 +158,7 @@ export default function PageWise() {
   const [smartQs, setSmartQs]     = useState<string[]>([]);
   const [loadingQs, setLoadingQs] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [splash, setSplash] = useState(true);
 
   const fileRef     = useRef<HTMLInputElement>(null);
   const bottomRef   = useRef<HTMLDivElement>(null);
@@ -128,6 +167,11 @@ export default function PageWise() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setSplash(false), 1800);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const handler = (e: Event) => { e.preventDefault(); setInstallPrompt(e); };
@@ -267,6 +311,7 @@ export default function PageWise() {
 
   return (
     <div style={{ height: "100vh", background: C.bg, fontFamily: "'Montserrat', sans-serif", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <SplashScreen visible={splash} />
       <style>{`
         @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
         @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
