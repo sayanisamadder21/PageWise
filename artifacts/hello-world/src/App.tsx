@@ -320,6 +320,13 @@ export default function PageWise() {
               📲 Install App
             </button>
           )}
+          {typeof navigator !== "undefined" && !!navigator.share && (
+            <button
+              onClick={() => navigator.share({ title: "PageWise", text: "Chat with any PDF using AI", url: window.location.href })}
+              style={{ background: "#d97706", border: "none", borderRadius: 6, padding: "5px 12px", color: "#1c1208", fontSize: 11, cursor: "pointer", fontFamily: "monospace", fontWeight: 700, whiteSpace: "nowrap" }}>
+              🔗 Share
+            </button>
+          )}
           <a href="https://tally.so/r/yPzqV8" target="_blank" rel="noopener noreferrer"
             style={{ background: "#d97706", border: "none", borderRadius: 6, padding: "5px 12px", color: "#1c1208", fontSize: 11, cursor: "pointer", fontFamily: "monospace", fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}>
             🚀 Join Waitlist
