@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PageWise — Offline</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #faf7f2;
+      font-family: "Palatino Linotype", Georgia, serif;
+      color: #1c1208;
+    }
+    .card {
+      text-align: center;
+      padding: 48px 36px;
+      max-width: 400px;
+    }
+    .logo {
+      width: 56px;
+      height: 56px;
+      background: #d97706;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      font-weight: bold;
+      color: #1c1208;
+      margin: 0 auto 24px;
+    }
+    h1 { font-size: 24px; font-weight: 700; margin-bottom: 12px; }
+    p { font-size: 15px; color: #92400e; line-height: 1.7; margin-bottom: 28px; }
+    button {
+      background: #d97706;
+      color: #1c1208;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 24px;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: monospace;
+      cursor: pointer;
+    }
+    button:hover { background: #b45309; color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">P</div>
+    <h1>You're offline</h1>
+    <p>PageWise needs an internet connection to chat with your PDFs. Please check your connection and try again.</p>
+    <button onclick="window.location.reload()">Try again</button>
+  </div>
+</body>
+</html>

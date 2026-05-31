@@ -1,5 +1,5 @@
 const CACHE_NAME = "pagewise-v1";
-const STATIC_ASSETS = ["/", "/index.html"];
+const STATIC_ASSETS = ["/", "/index.html", "/offline.html"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -19,6 +19,20 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+
+  const url = new URL(event.request.url);
+
+  // For navigation requests (page loads), show offline page if fetch fails
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request).catch(() =>
+        caches.match("/offline.html")
+      )
+    );
+    return;
+  }
+
+  // For other GET requests, try network first then fall back to cache
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request))
   );
