@@ -108,6 +108,8 @@ export default function PageWise() {
   const [smartQs, setSmartQs]     = useState<string[]>([]);
   const [loadingQs, setLoadingQs] = useState(false);
 
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+
   const fileRef     = useRef<HTMLInputElement>(null);
   const bottomRef   = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -115,6 +117,22 @@ export default function PageWise() {
   useEffect(() => {
     bottomRef.current && bottomRef.current.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    await installPrompt.userChoice;
+    setInstallPrompt(null);
+  };
 
   const currentP = PERSONAS.find(p => p.id === persona)!;
   const hasPDF   = !!pdfText;
@@ -295,6 +313,11 @@ export default function PageWise() {
             <button onClick={() => { setPdfText(""); setPdfName(""); setMessages([]); setPdfMeta(null); setSmartQs([]); }}
               style={{ background: "transparent", border: "1px solid #3d2a10", borderRadius: 6, padding: "4px 10px", color: "#78350f", fontSize: 11, cursor: "pointer", fontFamily: "monospace" }}>
               New PDF
+            </button>
+          )}
+          {installPrompt && (
+            <button onClick={handleInstall} style={{ background: "#d97706", border: "none", borderRadius: 6, padding: "5px 12px", color: "#1c1208", fontSize: 11, cursor: "pointer", fontFamily: "monospace", fontWeight: 700, whiteSpace: "nowrap" }}>
+              📲 Install App
             </button>
           )}
           <a href="https://tally.so/r/yPzqV8" target="_blank" rel="noopener noreferrer"
