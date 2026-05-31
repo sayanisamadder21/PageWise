@@ -1,0 +1,21 @@
+The image cropping script completely messed up the layout. It is displaying random cropped rectangular blocks of text, margins, and misaligned backgrounds in the header, splash screen, and app icons as seen in '1000585292.jpg', '1000585296.jpg', and '1000585294.jpg'. 
+
+Let's revert the automated image-slicing and fix the UI cleanly using pure code:
+
+1. FIXED COLOR PALETTE & GLOBAL FONTS:
+- Keep the design system locked to our exact hex codes: Background Cream (#FFF4E5), Primary Orange (#FF8A00), Dark Charcoal Text (#1A150F).
+- Ensure 'Playfair Display' is imported and applied to the main headers (like "Every document has a story.") and 'Montserrat' is applied to body text and buttons.
+
+2. FIX THE HEADER LOGO & PWA SPLASH SCREEN:
+- Remove the broken rectangular image blocks from the top-left header and the splash screen.
+- In the top-left header, instead of a broken image file, render the brand text cleanly using code: Use a bold 'Playfair Display' font for "Page" in Charcoal (#1A150F) and "Wise" in Orange (#FF8A00) side-by-side. 
+- For the splash screen, use a solid, full-screen Dark Charcoal (#1A150F) background. Center the wordmark text "PageWise" cleanly using the same crisp typography, with "FIVE MODES. ONE INSIGHT." centered below it in neat, small caps orange text. No messy image boundaries.
+
+3. FIX THE CARDS & ICONS:
+- Ensure the 5 mode cards sit beautifully on the Cream background without any stray background graphics bleeding behind them.
+- Keep using clean, pure SVG/Lucide icons (Graduation Cap, Bar Chart, Scales of Justice, Lightning Bolt, Medical Cross) rendered in solid Primary Orange (#FF8A00). 
+
+4. ICON PLACEHOLDERS:
+- For the favicon and the PWA icons, revert them to a clean temporary fallback (like a styled solid asset or standard icon configuration) so it doesn't look broken on the mobile home screen while we fix the asset files.
+
+Please scrub out the broken image references and clean up the CSS layout immediately so everything looks seamlessly polished and intentional!

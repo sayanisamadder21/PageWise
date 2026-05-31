@@ -1,38 +1,24 @@
 import { useState, useRef, useEffect } from "react";
 
-const wordmark = "/wordmark.png";
-
 function SplashScreen({ visible }: { visible: boolean }) {
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 9999,
       background: "#1A150F",
       display: "flex", flexDirection: "column",
-      alignItems: "center", justifyContent: "center", gap: 24,
+      alignItems: "center", justifyContent: "center", gap: 0,
       opacity: visible ? 1 : 0,
       pointerEvents: visible ? "all" : "none",
-      transition: "opacity 0.6s ease",
+      transition: "opacity 0.65s ease",
     }}>
-      <style>{`
-        @keyframes splashPulse {
-          0%, 100% { transform: scale(1); opacity: 0.9; }
-          50%       { transform: scale(1.06); opacity: 1; }
-        }
-      `}</style>
-      <img
-        src="/icon-512.png"
-        alt="PageWise icon"
-        style={{ width: 96, height: 96, borderRadius: 22, animation: "splashPulse 1.8s ease-in-out infinite" }}
-      />
-      <img
-        src="/wordmark.png"
-        alt="PageWise"
-        style={{ height: 44, objectFit: "contain", opacity: 0.95 }}
-      />
+      <div style={{ display: "flex", alignItems: "baseline", marginBottom: 16 }}>
+        <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 56, fontWeight: 700, color: "#FFF4E5", lineHeight: 1 }}>Page</span>
+        <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 56, fontWeight: 700, color: "#FF8A00", lineHeight: 1 }}>Wise</span>
+      </div>
       <p style={{
         fontFamily: "'Montserrat', sans-serif",
-        fontSize: 11, fontWeight: 700, letterSpacing: 4,
-        color: "#FF8A00", textTransform: "uppercase", marginTop: -8,
+        fontSize: 11, fontWeight: 700, letterSpacing: 5,
+        color: "#FF8A00", textTransform: "uppercase", margin: 0,
       }}>
         Five Modes. One Insight.
       </p>
@@ -329,7 +315,10 @@ export default function PageWise() {
 
       {/* ── Header ── */}
       <div style={{ background: C.dark, padding: "10px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `2px solid ${C.orange}`, flexShrink: 0 }}>
-        <img src={wordmark} alt="PageWise" style={{ height: 38, objectFit: "contain" }} />
+        <div style={{ display: "flex", alignItems: "baseline", gap: 0 }}>
+          <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 22, fontWeight: 700, color: "#FFF4E5", lineHeight: 1 }}>Page</span>
+          <span style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: 22, fontWeight: 700, color: "#FF8A00", lineHeight: 1 }}>Wise</span>
+        </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
           {pdfMeta && (
