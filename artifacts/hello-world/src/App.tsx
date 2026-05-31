@@ -4,7 +4,7 @@ function SplashScreen({ visible }: { visible: boolean }) {
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 9999,
-      background: "#100C04",
+      background: "#100D0B",
       display: "flex", alignItems: "center", justifyContent: "center",
       opacity: visible ? 1 : 0,
       pointerEvents: visible ? "all" : "none",
