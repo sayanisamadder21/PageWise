@@ -26,7 +26,9 @@ function SplashScreen({ visible }: { visible: boolean }) {
   );
 }
 
-const PROXY_URL = "https://plain-firefly-95a9.sayanisamadder345.workers.dev/v1beta/models/gemini-2.5-flash:generateContent";
+const PROXY_BASE = "https://plain-firefly-95a9.sayanisamadder345.workers.dev/v1beta/models/gemini-2.5-flash";
+const STREAM_URL = PROXY_BASE + ":streamGenerateContent?alt=sse";
+const QUERY_URL  = PROXY_BASE + ":generateContent";
 
 const C = {
   bg:       "#FFF4E5",
@@ -145,6 +147,7 @@ export default function PageWise() {
   const [loadingQs, setLoadingQs] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [splash, setSplash] = useState(true);
+  const [streaming, setStreaming] = useState(false);
 
   const fileRef     = useRef<HTMLInputElement>(null);
   const bottomRef   = useRef<HTMLDivElement>(null);
@@ -195,37 +198,80 @@ export default function PageWise() {
     setUploading(false);
   };
 
-  const callGemini = async (question: string, context: string): Promise<string> => {
-    const langInstruction = language !== "English" ? `\nAlways respond in ${language}.` : "";
-    const fullPrompt = currentP.sys + langInstruction + "\n\nDocument Content:\n" + context + "\n\nUser Question: " + question;
-    const doFetch = async () => {
-      const res = await fetch(PROXY_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: fullPrompt }] }] }),
-      });
-      const data = await res.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text as string | undefined;
-    };
-    let result = await doFetch();
-    if (!result) { await new Promise(r => setTimeout(r, 2000)); result = await doFetch(); }
-    return result || "No response generated.";
-  };
-
   const send = async (text?: string) => {
     const q = (text || input).trim();
-    if (!q || !pdfText || loading) return;
+    if (!q || !pdfText || loading || streaming) return;
     setInput("");
     setShowHints(false);
     setMessages(prev => [...prev, { role: "user", text: q, ts: Date.now() }]);
     setLoading(true);
+    setStreaming(true);
+
+    const langInstruction = language !== "English" ? `\nAlways respond in ${language}.` : "";
+    const fullPrompt = currentP.sys + langInstruction + "\n\nDocument Content:\n" + pdfText.slice(0, 12000) + "\n\nUser Question: " + q;
+
     try {
-      const reply = await callGemini(q, pdfText.slice(0, 12000));
-      setMessages(prev => [...prev, { role: "assistant", text: reply, ts: Date.now() }]);
+      const res = await fetch(STREAM_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: fullPrompt }] }] }),
+      });
+
+      if (!res.ok || !res.body) throw new Error("Stream failed");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = "";
+      let firstChunk = true;
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const jsonStr = line.slice(6).trim();
+          if (!jsonStr || jsonStr === "[DONE]") continue;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const part = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (!part) continue;
+            accumulated += part;
+            if (firstChunk) {
+              firstChunk = false;
+              setLoading(false);
+              setMessages(prev => [...prev, { role: "assistant", text: accumulated, ts: Date.now() }]);
+            } else {
+              setMessages(prev => {
+                const next = [...prev];
+                for (let i = next.length - 1; i >= 0; i--) {
+                  if (next[i].role === "assistant") {
+                    next[i] = { ...next[i], text: accumulated };
+                    break;
+                  }
+                }
+                return next;
+              });
+            }
+          } catch { /* malformed SSE line — skip */ }
+        }
+      }
+
+      if (!accumulated) {
+        setLoading(false);
+        setMessages(prev => [...prev, { role: "assistant", text: "No response generated.", ts: Date.now() }]);
+      }
     } catch {
+      setLoading(false);
       setMessages(prev => [...prev, { role: "assistant", text: "Error contacting AI. Check your connection.", ts: Date.now() }]);
     }
-    setLoading(false);
+
+    setStreaming(false);
   };
 
   const generateSmartQs = async () => {
@@ -234,7 +280,7 @@ export default function PageWise() {
     setSmartQs([]);
     try {
       const prompt = "Based on this document, generate exactly 5 specific interesting questions a reader might ask. Return ONLY a JSON array of 5 strings, nothing else.\n\nDocument:\n" + pdfText.slice(0, 4000);
-      const res = await fetch(PROXY_URL, {
+      const res = await fetch(QUERY_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }] }),
@@ -569,8 +615,8 @@ export default function PageWise() {
                 style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 14, color: C.dark, fontFamily: "'Montserrat',sans-serif", resize: "none", lineHeight: 1.6, paddingTop: 5, paddingBottom: 5, maxHeight: 90 }}
               />
 
-              <button className="send-btn" onClick={() => send()} disabled={!input.trim() || loading}
-                style={{ background: (!input.trim() || loading) ? C.muted : C.orange, border: "none", borderRadius: 9, width: 36, height: 36, cursor: (!input.trim() || loading) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, transition: "all 0.15s", flexShrink: 0, color: (!input.trim() || loading) ? "#8B6A3A" : C.dark, fontWeight: "bold" }}>
+              <button className="send-btn" onClick={() => send()} disabled={!input.trim() || loading || streaming}
+                style={{ background: (!input.trim() || loading || streaming) ? C.muted : C.orange, border: "none", borderRadius: 9, width: 36, height: 36, cursor: (!input.trim() || loading || streaming) ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, transition: "all 0.15s", flexShrink: 0, color: (!input.trim() || loading || streaming) ? "#8B6A3A" : C.dark, fontWeight: "bold" }}>
                 ^
               </button>
             </div>
