@@ -297,6 +297,10 @@ export default function PageWise() {
               New PDF
             </button>
           )}
+          <a href="https://tally.so/r/yPzqV8" target="_blank" rel="noopener noreferrer"
+            style={{ background: "#d97706", border: "none", borderRadius: 6, padding: "5px 12px", color: "#1c1208", fontSize: 11, cursor: "pointer", fontFamily: "monospace", fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}>
+            🚀 Join Waitlist
+          </a>
         </div>
       </div>
 
@@ -338,6 +342,11 @@ export default function PageWise() {
               <input ref={fileRef} type="file" accept=".pdf" style={{ display: "none" }}
                 onChange={e => handleFile(e.target.files![0])} />
             </div>
+
+            <a href="https://tally.so/r/yPzqV8" target="_blank" rel="noopener noreferrer"
+              style={{ display: "inline-block", background: "#d97706", borderRadius: 8, padding: "10px 22px", color: "#1c1208", fontSize: 13, fontWeight: 700, fontFamily: "monospace", textDecoration: "none", marginBottom: 20 }}>
+              🚀 Join Waitlist
+            </a>
 
             {/* Persona preview */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
