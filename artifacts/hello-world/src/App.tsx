@@ -26,9 +26,7 @@ function SplashScreen({ visible }: { visible: boolean }) {
   );
 }
 
-const PROXY_BASE = "https://plain-firefly-95a9.sayanisamadder345.workers.dev/v1beta/models/gemini-2.5-flash";
-const STREAM_URL = PROXY_BASE + ":streamGenerateContent?alt=sse";
-const QUERY_URL  = PROXY_BASE + ":generateContent";
+const QUERY_URL = "https://plain-firefly-95a9.sayanisamadder345.workers.dev/v1beta/models/gemini-2.5-flash:generateContent";
 
 const C = {
   bg:       "#FFF4E5",
@@ -244,13 +242,28 @@ export default function PageWise() {
         }),
       });
       const data = await res.json();
+
+      if (!res.ok) {
+        const errMsg: string = data?.error?.message || `API error ${res.status}`;
+        const retryMatch = errMsg.match(/retry in ([\d.]+)s/i);
+        const retryHint = retryMatch ? ` Please wait ${Math.ceil(parseFloat(retryMatch[1]))} seconds and try again.` : "";
+        const isQuota = res.status === 429;
+        const friendly = isQuota
+          ? `⚠️ The AI service is temporarily rate-limited (free tier quota reached).${retryHint}`
+          : `⚠️ AI error (${res.status}): ${errMsg.slice(0, 120)}`;
+        setLoading(false);
+        setStreaming(false);
+        setMessages(prev => [...prev, { role: "assistant", text: friendly, ts: Date.now() }]);
+        return;
+      }
+
       const fullText: string = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
       setLoading(false);
       revealWords(fullText);
     } catch {
       setLoading(false);
       setStreaming(false);
-      setMessages(prev => [...prev, { role: "assistant", text: "Error contacting AI. Check your connection.", ts: Date.now() }]);
+      setMessages(prev => [...prev, { role: "assistant", text: "⚠️ Could not reach the AI service. Check your connection and try again.", ts: Date.now() }]);
     }
   };
 
@@ -269,6 +282,7 @@ export default function PageWise() {
         }),
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || `API ${res.status}`);
       const raw   = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
       const clean = raw.replace(/```json|```/g, "").trim();
       const qs    = JSON.parse(clean);
