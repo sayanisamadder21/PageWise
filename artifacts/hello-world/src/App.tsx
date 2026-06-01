@@ -198,6 +198,30 @@ export default function PageWise() {
     setUploading(false);
   };
 
+  const revealWords = (fullText: string) => {
+    const words = fullText.split(" ");
+    let idx = 0;
+    const ts = Date.now();
+    setMessages(prev => [...prev, { role: "assistant", text: words[0] ?? fullText, ts }]);
+    idx = 1;
+    if (idx >= words.length) { setStreaming(false); return; }
+    const timer = setInterval(() => {
+      idx = Math.min(idx + 2, words.length);
+      const revealed = words.slice(0, idx).join(" ");
+      setMessages(prev => {
+        const next = [...prev];
+        for (let i = next.length - 1; i >= 0; i--) {
+          if (next[i].role === "assistant" && next[i].ts === ts) {
+            next[i] = { ...next[i], text: revealed };
+            break;
+          }
+        }
+        return next;
+      });
+      if (idx >= words.length) { clearInterval(timer); setStreaming(false); }
+    }, 22);
+  };
+
   const send = async (text?: string) => {
     const q = (text || input).trim();
     if (!q || !pdfText || loading || streaming) return;
@@ -211,67 +235,23 @@ export default function PageWise() {
     const fullPrompt = currentP.sys + langInstruction + "\n\nDocument Content:\n" + pdfText.slice(0, 12000) + "\n\nUser Question: " + q;
 
     try {
-      const res = await fetch(STREAM_URL, {
+      const res = await fetch(QUERY_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: fullPrompt }] }] }),
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+          generationConfig: { thinkingConfig: { thinkingBudget: 0 } },
+        }),
       });
-
-      if (!res.ok || !res.body) throw new Error("Stream failed");
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let accumulated = "";
-      let firstChunk = true;
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const jsonStr = line.slice(6).trim();
-          if (!jsonStr || jsonStr === "[DONE]") continue;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const part = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (!part) continue;
-            accumulated += part;
-            if (firstChunk) {
-              firstChunk = false;
-              setLoading(false);
-              setMessages(prev => [...prev, { role: "assistant", text: accumulated, ts: Date.now() }]);
-            } else {
-              setMessages(prev => {
-                const next = [...prev];
-                for (let i = next.length - 1; i >= 0; i--) {
-                  if (next[i].role === "assistant") {
-                    next[i] = { ...next[i], text: accumulated };
-                    break;
-                  }
-                }
-                return next;
-              });
-            }
-          } catch { /* malformed SSE line — skip */ }
-        }
-      }
-
-      if (!accumulated) {
-        setLoading(false);
-        setMessages(prev => [...prev, { role: "assistant", text: "No response generated.", ts: Date.now() }]);
-      }
+      const data = await res.json();
+      const fullText: string = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
+      setLoading(false);
+      revealWords(fullText);
     } catch {
       setLoading(false);
+      setStreaming(false);
       setMessages(prev => [...prev, { role: "assistant", text: "Error contacting AI. Check your connection.", ts: Date.now() }]);
     }
-
-    setStreaming(false);
   };
 
   const generateSmartQs = async () => {
@@ -283,7 +263,10 @@ export default function PageWise() {
       const res = await fetch(QUERY_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }] }),
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: { thinkingConfig: { thinkingBudget: 0 } },
+        }),
       });
       const data = await res.json();
       const raw   = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
