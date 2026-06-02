@@ -309,7 +309,7 @@ export default function PageWise() {
         fontFamily: "Palatino Linotype, Georgia, serif",
         display: "flex",
         flexDirection: "column",
-        overflow: "hidden",
+        overflow: "auto",
       }}
     >
       <style>{`
