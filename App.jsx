@@ -308,8 +308,9 @@ export default function PageWise() {
         fontFamily: "Palatino Linotype, Georgia, serif",
         display: "flex",
         flexDirection: "column",
-        overflow: "auto",
+        overflow: "visible",
         minheight: "100vh",
+        flexDirection: "column",
       }}
     >
       <style>{`
