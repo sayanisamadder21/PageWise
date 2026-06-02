@@ -309,6 +309,7 @@ export default function PageWise() {
         display: "flex",
         flexDirection: "column",
         overflow: "auto",
+        height: "100vh",
       }}
     >
       <style>{`
@@ -1063,6 +1064,11 @@ export default function PageWise() {
               >
                 Gemini 2.5 Flash
               </div>
+              {/*Footer*/}
+              <div style={{ marginTop: '60px', padding: '20px', textAlign: 'center', borderTop: '1px solid #d97706', fontSize: '12px', color: '#666' }}>
+                <p>🔒 Your PDFs are never stored. Analyzed and deleted immediately.</p>
+                <p>By using PageWise you agree that this is for educational purposes only.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -1070,7 +1076,3 @@ export default function PageWise() {
     </div>
   );
 }
-<div style={{ marginTop: '60px', padding: '20px', textAlign: 'center', borderTop: '1px solid #d97706', fontSize: '12px', color: '#666' }}>
-  <p>🔒 Your PDFs are never stored. Analyzed and deleted immediately.</p>
-  <p>By using PageWise you agree that this is for educational purposes only.</p>
-</div>
