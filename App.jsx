@@ -309,7 +309,7 @@ export default function PageWise() {
         display: "flex",
         flexDirection: "column",
         overflow: "auto",
-        height: "100vh",
+        minheight: "100vh",
       }}
     >
       <style>{`
