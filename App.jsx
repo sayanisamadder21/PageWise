@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from "react";
+import Privacy from './src/pages/Privacy';
+import Terms from './src/pages/Terms';
 
 // Your Gemini proxy
 const PROXY_URL =
@@ -1069,3 +1071,7 @@ export default function PageWise() {
     </div>
   );
 }
+<div style={{ marginTop: '60px', padding: '20px', textAlign: 'center', borderTop: '1px solid #d97706', fontSize: '12px', color: '#666' }}>
+  <p>🔒 Your PDFs are never stored. Analyzed and deleted immediately.</p>
+  <p>By using PageWise you agree that this is for educational purposes only.</p>
+</div>
