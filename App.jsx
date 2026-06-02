@@ -304,7 +304,6 @@ export default function PageWise() {
   return (
     <div
       style={{
-        minHeight: "100vh",
         background: "#faf7f2",
         fontFamily: "Palatino Linotype, Georgia, serif",
         display: "flex",
