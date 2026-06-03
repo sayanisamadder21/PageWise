@@ -308,9 +308,9 @@ export default function PageWise() {
         fontFamily: "Palatino Linotype, Georgia, serif",
         display: "flex",
         flexDirection: "column",
-        overflow: "scroll",
-        minheight: "100vh",
-        maxHeight: "100%" ,
+        overflow: "auto",
+        minHeight: "100vh",
+        maxHeight: "none",
       }}
     >
       <style>{`
@@ -425,6 +425,7 @@ export default function PageWise() {
             alignItems: "center",
             justifyContent: "center",
             padding: 32,
+            overflow: "auto",
           }}
         >
           <div style={{ maxWidth: 460, width: "100%", textAlign: "center" }}>
@@ -577,9 +578,25 @@ export default function PageWise() {
                 fontSize: 11,
                 color: "#b45309",
                 fontFamily: "monospace",
+                marginBottom: 32,
               }}
             >
               Powered by Gemini 2.5 Flash
+            </div>
+
+            {/* Footer */}
+            <div
+              style={{
+                marginTop: "20px",
+                padding: "20px",
+                textAlign: "center",
+                borderTop: "1px solid #d97706",
+                fontSize: "12px",
+                color: "#666",
+              }}
+            >
+              <p>🔒 Your PDFs are never stored. Analyzed and deleted immediately.</p>
+              <p>By using PageWise you agree that this is for educational purposes only.</p>
             </div>
           </div>
         </div>
@@ -1064,11 +1081,6 @@ export default function PageWise() {
                 }}
               >
                 Gemini 2.5 Flash
-              </div>
-              {/*Footer*/}
-              <div style={{ marginTop: '60px', padding: '20px', textAlign: 'center', borderTop: '1px solid #d97706', fontSize: '12px', color: '#666' }}>
-                <p>🔒 Your PDFs are never stored. Analyzed and deleted immediately.</p>
-                <p>By using PageWise you agree that this is for educational purposes only.</p>
               </div>
             </div>
           </div>
