@@ -339,7 +339,7 @@ export default function PageWise() {
   });
 
   return (
-    <div style={{ height: "100vh", background: C.bg, fontFamily: "'Montserrat', sans-serif", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Montserrat', sans-serif", display: "flex", flexDirection: "column", overflow: "auto" }}>
       <SplashScreen visible={splash} />
       <style>{`
         @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
@@ -449,7 +449,7 @@ export default function PageWise() {
           </div>
         </div>
       ) : (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto" }}>
 
           {/* Messages */}
           <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 8px", display: "flex", flexDirection: "column", gap: 14 }}>
