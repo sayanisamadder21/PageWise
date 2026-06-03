@@ -214,9 +214,9 @@ export default function PageWise() {
 
   return (
     <div style={{
-      height: "100vh", background: "#faf7f2",
+      minHeight: "100vh", background: "#faf7f2",
       fontFamily: "Palatino Linotype, Georgia, serif",
-      display: "flex", flexDirection: "column", overflow: "hidden",
+      display: "flex", flexDirection: "column", overflow: "auto",
     }}>
       <style>{`
         @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
@@ -323,7 +323,7 @@ export default function PageWise() {
           </div>
         </div>
       ) : (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto" }}>
 
           {/* Messages */}
           <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 8px", display: "flex", flexDirection: "column", gap: 14 }}>
