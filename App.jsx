@@ -592,7 +592,7 @@ export default function PageWise() {
                 textAlign: "center",
                 borderTop: "1px solid #d97706",
                 fontSize: "12px",
-                color: "#666",
+                color: "#78350f",
               }}
             >
               <p>🔒 Your PDFs are never stored. Analyzed and deleted immediately.</p>
