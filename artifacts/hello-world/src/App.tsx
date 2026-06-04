@@ -1,4 +1,7 @@
 import { useState, useRef, useEffect } from "react";
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
+
 
 function SplashScreen({ visible }: { visible: boolean }) {
   return (
