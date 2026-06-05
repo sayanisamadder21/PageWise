@@ -131,21 +131,6 @@ export default function AppWrapper() {
   const [splash, setSplash]       = useState(true);
   const [streaming, setStreaming] = useState(false);
 
-  useEffect(() => {
-   const saved = localStorage.getItem("pagewise-current-chat");
-
-   if (saved) {
-    setMessages(JSON.parse(saved));
-  }
-}, []);
-
-  useEffect(() => {
-   localStorage.setItem(
-    "pagewise-current-chat",
-    JSON.stringify(messages)
-  );
-}, [messages]);
-
   const fileRef     = useRef<HTMLInputElement>(null);
   const bottomRef   = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
