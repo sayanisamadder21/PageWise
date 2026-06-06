@@ -3,6 +3,7 @@ import PdfLayout from "./layouts/PdfLayoutNew";
 import ChatLayout from "./layouts/ChatLayoutNew";
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
+import { tierConfig } from "./config/tierConfig";
 
 
 // ── Splash Screen ──────────────────────────────────────────
@@ -162,9 +163,16 @@ export default function AppWrapper() {
     await installPrompt.userChoice;
     setInstallPrompt(null);
   };
+  const tier = tierConfig.free;
+  const pdfsUploadedToday = 0; 
 
   const handleFile = async (file: File) => {
     if (!file || file.type !== "application/pdf") { alert("Please upload a PDF file."); return; }
+    const isUnlimited = tier.pdfsPerDay === undefined || tier.pdfsPerDay === -1;
+    if (!isUnlimited && pdfsUploadedToday >= tier.pdfsPerDay!) {
+      alert(`Daily PDF limit reached. Upgrade your plan to upload more PDFs today.`);
+      return;
+    }
     setPdfName(file.name);
     setMessages([]);
     setShowHints(true);
@@ -360,6 +368,8 @@ export default function AppWrapper() {
           fileRef={fileRef}
           installPrompt={installPrompt}
           handleInstall={handleInstall}
+          tier={tier}
+          pdfsUplodedToday={pdfsUploadedToday}
         />
       )}
     </>

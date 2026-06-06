@@ -65,7 +65,7 @@ export const tierConfig: Record<Tier, TierConfig> = {
     name: "Pro",
 
     dailyQuestions: -1, // Unlimited (fair use)
-    pdfsPerDay: undefined,
+    pdfsPerDay: undefined, // Unlimited
     unlimitedPdfs: true,
     maxContextChars: 100000,
 
@@ -80,3 +80,4 @@ export const tierConfig: Record<Tier, TierConfig> = {
     languages: 14,
   },
 };
+export type tierConfig = typeof tierConfig[Tier];

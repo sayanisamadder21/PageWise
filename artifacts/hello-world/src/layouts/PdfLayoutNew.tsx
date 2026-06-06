@@ -1,4 +1,5 @@
 import { C, PERSONAS, ICON_PATHS } from "../AppNew";
+import { tierConfig } from "../config/tierConfig";
 
 function Icon({ name, size = 14, color = "currentColor" }: { name: string; size?: number; color?: string }) {
   return (
@@ -31,6 +32,8 @@ interface PdfLayoutProps {
   fileRef: React.RefObject<HTMLInputElement|null>;
   installPrompt: any;
   handleInstall: () => void;
+  tier: tierConfig;
+  pdfsUplodedToday: number;
 }
 
 export default function PdfLayout({
