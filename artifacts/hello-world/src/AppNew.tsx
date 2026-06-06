@@ -4,6 +4,8 @@ import ChatLayout from "./layouts/ChatLayoutNew";
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import { tierConfig } from "./config/tierConfig";
+import { supabase } from "./supabase";
+import Auth from "./components/Auth";
 
 
 // ── Splash Screen ──────────────────────────────────────────
@@ -156,6 +158,17 @@ export default function AppWrapper() {
     window.addEventListener("beforeinstallprompt", handler);
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
+  
+  const [session, setSession] = useState<any>(null);
+
+useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    setSession(session);
+  });
+  supabase.auth.onAuthStateChange((_event, session) => {
+    setSession(session);
+  });
+}, []);
 
   const handleInstall = async () => {
     if (!installPrompt) return;
@@ -326,7 +339,7 @@ export default function AppWrapper() {
   const reset = () => {
     setPdfText(""); setPdfName(""); setMessages([]); setPdfMeta(null); setSmartQs([]);
   };
-
+  if (!session) return <Auth />;
   return (
     <>
       <SplashScreen visible={splash} />
