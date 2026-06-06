@@ -34,10 +34,11 @@ interface PdfLayoutProps {
   handleInstall: () => void;
   tier: tierConfig;
   pdfsUplodedToday: number;
+  onLogout: () => void;
 }
 
 export default function PdfLayout({
-  uploading, dragOver, setDragOver, handleFile, fileRef, installPrompt, handleInstall,
+  uploading, dragOver, setDragOver, handleFile, fileRef, installPrompt, handleInstall, tier, pdfsUplodedToday, onLogout
 }: PdfLayoutProps) {
   return (
     <div style={{
@@ -88,6 +89,18 @@ export default function PdfLayout({
               cursor: "pointer", fontFamily: "'Montserrat',sans-serif",
               fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap",
             }}>🚀 Join Waitlist</a>
+          <button onClick={onLogout} style={{
+              background: "transparent",
+              border: "1px solid #d97706",
+              borderRadius: 6,
+              padding: "5px 11px",
+              color: C.orange,
+              fontSize: 10,
+              cursor: "pointer",
+              fontFamily: "'Montserrat',sans-serif",
+              fontWeight: 700,
+              whiteSpace: "nowrap",
+}}>Log out</button>
         </div>
       </div>
 

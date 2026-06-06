@@ -176,6 +176,9 @@ useEffect(() => {
     await installPrompt.userChoice;
     setInstallPrompt(null);
   };
+  const handleLogout = async () => {
+  await supabase.auth.signOut();
+};
   const tier = tierConfig.free;
   const pdfsUploadedToday = 0; 
 
@@ -383,6 +386,7 @@ useEffect(() => {
           handleInstall={handleInstall}
           tier={tier}
           pdfsUplodedToday={pdfsUploadedToday}
+          onLogout={handleLogout}
         />
       )}
     </>
