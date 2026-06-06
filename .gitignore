@@ -8,6 +8,13 @@ out-tsc
 .expo
 .expo-shared
 
+# Envionment variables
+.env
+
+# Replit
+.replit-artifacts
+.replit-artifact 
+
 # dependencies
 node_modules
 
