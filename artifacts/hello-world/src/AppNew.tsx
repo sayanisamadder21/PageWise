@@ -374,6 +374,7 @@ useEffect(() => {
           setLanguage={setLanguage}
           installPrompt={installPrompt}
           handleInstall={handleInstall}
+          onLogout={handleLogout}
         />
       ) : (
         <PdfLayout

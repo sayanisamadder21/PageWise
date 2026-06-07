@@ -50,6 +50,7 @@ interface ChatLayoutProps {
   setLanguage: (l: string) => void;
   installPrompt: any;
   handleInstall: () => void;
+  onLogout: () => void;
 }
 
 export default function ChatLayout({
@@ -58,7 +59,7 @@ export default function ChatLayout({
   copy, copied, showHints, smartQs, loadingQs,
   generateSmartQs, fileRef, bottomRef, textareaRef,
   handleFile, onReset, currentP, fmt,
-  language, setLanguage, installPrompt, handleInstall,
+  language, setLanguage, installPrompt, handleInstall, onLogout,
 }: ChatLayoutProps) {
 
   const btnStyle = (active = false): React.CSSProperties => ({
@@ -148,6 +149,18 @@ export default function ChatLayout({
               fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap",
             }}>🚀 Join Waitlist</a>
         </div>
+          <button onClick={onLogout} style={{
+  background: "transparent",
+  border: "1px solid #d97706",
+  borderRadius: 6,
+  padding: "5px 11px",
+  color: C.orange,
+  fontSize: 10,
+  cursor: "pointer",
+  fontFamily: "'Montserrat',sans-serif",
+  fontWeight: 700,
+  whiteSpace: "nowrap",
+}}>Log out</button>
       </div>
 
       {/* ── SCROLLABLE MESSAGES AREA ── */}
