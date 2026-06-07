@@ -159,19 +159,35 @@ export default function PdfLayout({
 
           {/* Mode cards */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-            {PERSONAS.map(p => (
-              <div key={p.id} style={{
-                background: C.cardBg, border: `1px solid ${C.border}`,
-                borderRadius: 10, padding: "10px 12px",
-                textAlign: "left", display: "flex", alignItems: "flex-start", gap: 8,
-              }}>
-                <div style={{ marginTop: 1 }}><Icon name={p.icon} size={14} color={C.orange} /></div>
-                <div>
-                  <div style={{ fontSize: 13, color: C.dark, fontWeight: 700 }}>{p.label}</div>
-                  <div style={{ fontSize: 11, color: C.textMid, marginTop: 1 }}>{p.desc}</div>
-                </div>
-              </div>
-            ))}
+            {PERSONAS.map(p => {
+  const isLocked = ["studynotes", "examgen"].includes(p.id);
+  return (
+    <div key={p.id} style={{
+      background: C.cardBg, 
+      border: `1px solid ${C.border}`,
+      borderRadius: 10, 
+      padding: "10px 12px",
+      textAlign: "left", 
+      display: "flex", 
+      alignItems: "flex-start", 
+      gap: 8,
+      opacity: isLocked ? 0.6 : 1,
+      position: "relative"
+    }}>
+      <div style={{ marginTop: 1 }}>
+        <Icon name={p.icon} size={14} color={isLocked ? C.muted : C.orange} />
+      </div>
+      <div>
+        <div style={{ fontSize: 13, color: C.dark, fontWeight: 700 }}>
+          {p.label} {isLocked && "🔒"}
+        </div>
+        <div style={{ fontSize: 11, color: C.textMid, marginTop: 1 }}>
+          {isLocked ? "Starter+ plan" : p.desc}
+        </div>
+      </div>
+    </div>
+  );
+})}
           </div>
 
           <div style={{ fontSize: 10, color: C.muted, fontWeight: 600, letterSpacing: 1 }}>
