@@ -51,6 +51,7 @@ interface ChatLayoutProps {
   installPrompt: any;
   handleInstall: () => void;
   onLogout: () => void;
+  pdfText: string;
 }
 
 export default function ChatLayout({
@@ -60,6 +61,7 @@ export default function ChatLayout({
   generateSmartQs, fileRef, bottomRef, textareaRef,
   handleFile, onReset, currentP, fmt,
   language, setLanguage, installPrompt, handleInstall, onLogout,
+  pdfText,
 }: ChatLayoutProps) {
 
   const btnStyle = (active = false): React.CSSProperties => ({
@@ -312,7 +314,17 @@ export default function ChatLayout({
           <span style={{ fontSize: 9, color: C.muted, letterSpacing: 3, textTransform: "uppercase", fontWeight: 700, flexShrink: 0 }}>Mode</span>
           <div style={{ display: "flex", gap: 4, flex: 1, flexWrap: "nowrap", overflowX: "auto" }}>
             {PERSONAS.map(p => (
-              <button key={p.id} className="mode-btn" onClick={() => setPersona(p.id)} title={p.desc} style={btnStyle(persona === p.id)}>
+              <button key={p.id} className="mode-btn" onClick={() => {
+  setPersona(p.id);
+  if (["insights", "studynotes", "examgen"].includes(p.id) && pdfText) {
+    const autoPrompts: Record<string, string> = {
+      insights: "Extract the key insights from this document",
+      studynotes: "Generate comprehensive study notes from this document",
+      examgen: "Generate exam questions from this document"
+    };
+    send(autoPrompts[p.id]);
+  }
+}}title={p.desc} style={btnStyle(persona === p.id)}>
                 <Icon name={p.icon} size={11} color={persona === p.id ? C.gold : C.textMid} />
                 {p.label}
               </button>

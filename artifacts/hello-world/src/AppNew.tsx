@@ -389,6 +389,7 @@ useEffect(() => {
           installPrompt={installPrompt}
           handleInstall={handleInstall}
           onLogout={handleLogout}
+          pdfText={pdfText}
         />
       ) : (
         <PdfLayout
