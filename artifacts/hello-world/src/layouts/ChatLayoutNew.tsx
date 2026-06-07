@@ -72,7 +72,7 @@ export default function ChatLayout({
     fontFamily: "'Montserrat', sans-serif", fontSize: 11, fontWeight: 600,
     display: "flex", alignItems: "center", gap: 4,
   });
-
+  const isMobile = window.innerWidth <= 640;
   const isSendDisabled = !input.trim() || loading || streaming;
 
   return (
@@ -143,7 +143,7 @@ export default function ChatLayout({
           )}
           <a href="https://tally.so/r/yPzqV8" target="_blank" rel="noopener noreferrer"
             style={{
-              background: C.orange, border: "none", borderRadius: 6,
+              background: C.orange, border: "none", borderRadius: 6, display: isMobile ? "none" : "inline-block",
               padding: "5px 11px", color: C.dark, fontSize: 10,
               cursor: "pointer", fontFamily: "'Montserrat',sans-serif",
               fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap",
