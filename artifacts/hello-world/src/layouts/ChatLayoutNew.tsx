@@ -334,7 +334,7 @@ export default function ChatLayout({
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
           <span style={{ fontSize: 9, color: C.muted, letterSpacing: 3, textTransform: "uppercase", fontWeight: 700, flexShrink: 0 }}>Mode</span>
           <div style={{ position: "relative", flex: 1, overflow: "hidden" }}>
-  <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", overflowX: "auto" }}></div>
+  <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", overflowX: "auto" }}>
             {PERSONAS.map(p => (
               <button key={p.id} className="mode-btn" onClick={() => {
   setPersona(p.id);
@@ -414,6 +414,7 @@ export default function ChatLayout({
           <div style={{ fontSize: 9, color: C.orange, fontWeight: 700, letterSpacing: 1 }}>GEMINI 2.5 FLASH</div>
         </div>
       </div>
+    </div>
     </div>
   );
 }
