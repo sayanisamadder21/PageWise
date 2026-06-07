@@ -342,7 +342,7 @@ useEffect(() => {
   const reset = () => {
     setPdfText(""); setPdfName(""); setMessages([]); setPdfMeta(null); setSmartQs([]);
   };
-  if (!session) return <Auth />;
+  // if (!session) return <Auth />;
   return (
     <>
       <SplashScreen visible={splash} />
