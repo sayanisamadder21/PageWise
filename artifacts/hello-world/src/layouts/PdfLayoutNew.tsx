@@ -182,7 +182,7 @@ export default function PdfLayout({
           {p.label} {isLocked && "🔒"}
         </div>
         <div style={{ fontSize: 11, color: C.textMid, marginTop: 1 }}>
-          {isLocked ? "Starter+ plan" : p.desc}
+          {isLocked ? "Starter & Pro" : p.desc}
         </div>
       </div>
     </div>
