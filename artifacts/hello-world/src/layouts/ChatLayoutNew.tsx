@@ -1,4 +1,5 @@
 import { C, PERSONAS, SUGGESTIONS, ICON_PATHS, LANGUAGES } from "../AppNew";
+import { exportPdf } from "../services/exportPdf";
 
 function Icon({ name, size = 14, color = "currentColor" }: { name: string; size?: number; color?: string }) {
   return (
@@ -52,6 +53,7 @@ interface ChatLayoutProps {
   handleInstall: () => void;
   onLogout: () => void;
   pdfText: string;
+  pdfName: string;
 }
 
 export default function ChatLayout({
@@ -61,7 +63,7 @@ export default function ChatLayout({
   generateSmartQs, fileRef, bottomRef, textareaRef,
   handleFile, onReset, currentP, fmt,
   language, setLanguage, installPrompt, handleInstall, onLogout,
-  pdfText,
+  pdfText, pdfName,
 }: ChatLayoutProps) {
 
   const btnStyle = (active = false): React.CSSProperties => ({
@@ -197,7 +199,7 @@ export default function ChatLayout({
                 color: msg.role === "user" ? C.bg : C.dark,
                 lineHeight: 1.75, fontFamily: "'Montserrat',sans-serif",
               }} dangerouslySetInnerHTML={{ __html: fmt(msg.text) }} />
-              {msg.role === "assistant" && (
+              {msg.role === "assistant" && ( <>
                 <button onClick={() => copy(msg.text, i)} style={{
                   marginTop: 5,
                   background: copied === i ? C.orange : C.cardBg,
@@ -217,7 +219,26 @@ export default function ChatLayout({
                     </>
                   )}
                 </button>
-              )}
+              <button onClick={() => exportPdf( messages.map(m => ({ role: m.role as "assistant" | "user", content: m.text })), pdfName || "chat", {} 
+)} style={{
+  marginTop: 5,
+  background: "transparent",
+  border: `1.5px solid ${C.orange}`,
+  borderRadius: 7,
+  cursor: "pointer",
+  padding: "4px 10px",
+  color: C.orange,
+  display: "flex",
+  alignItems: "center",
+  gap: 5,
+  fontSize: 10,
+  fontFamily: "'Montserrat',sans-serif",
+  fontWeight: 700,
+  transition: "all 0.15s",
+}}>
+  📄 Export PDF
+</button> 
+</>)}
             </div>
             {msg.role === "user" && (
               <div style={{
