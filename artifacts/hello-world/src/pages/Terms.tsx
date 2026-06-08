@@ -1,50 +1,146 @@
 export default function Terms() {
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '40px 20px', fontFamily: 'Georgia, serif', lineHeight: '1.8', color: '#333' }}>
-      <h1 style={{ color: '#d97706', marginBottom: '30px' }}>Terms of Service</h1>
-      
+    <div
+      style={{
+        maxWidth: "900px",
+        margin: "0 auto",
+        padding: "40px 20px",
+        fontFamily: "Georgia, serif",
+        lineHeight: "1.8",
+        color: "#333",
+      }}
+    >
+      <h1 style={{ color: "#d97706", marginBottom: "30px" }}>
+        Terms of Service
+      </h1>
+
       <h2>1. Acceptance of Terms</h2>
-      <p>By using PageWise, you agree to these terms. If you don't agree, don't use the service.</p>
+      <p>
+        By accessing or using PageWise, you agree to these Terms of Service.
+        If you do not agree with these terms, please do not use the service.
+      </p>
 
-      <h2>2. What PageWise Is</h2>
-      <p>PageWise is an AI-powered PDF analysis tool that helps you understand documents through multiple specialized lenses (Medical, Legal, Teaching, Analysis, Summary).</p>
+      <h2>2. About PageWise</h2>
+      <p>
+        PageWise is an AI-powered document analysis platform operated by
+        Saevora. The service allows users to upload documents, ask questions,
+        generate summaries, create study materials, and receive AI-assisted
+        insights.
+      </p>
 
-      <h2>3. Your Responsibilities</h2>
+      <h2>3. User Responsibilities</h2>
       <ul>
-        <li>You are responsible for the documents you upload</li>
-        <li>You must have permission to analyze any document you upload</li>
-        <li>You must comply with all laws when using PageWise</li>
-        <li>Do not upload illegal or harmful content</li>
+        <li>You are responsible for the documents and content you upload.</li>
+        <li>
+          You must have the right to upload and analyze any document you
+          provide.
+        </li>
+        <li>You must comply with all applicable laws and regulations.</li>
+        <li>
+          You must not upload unlawful, harmful, malicious, or infringing
+          content.
+        </li>
+        <li>
+          You understand that AI-generated responses may contain inaccuracies.
+        </li>
       </ul>
 
-      <h2>4. Medical & Legal Disclaimers</h2>
-      <p><strong>Medical:</strong> PageWise is NOT a substitute for professional medical advice. Always consult a licensed healthcare provider for medical decisions.</p>
-      <p><strong>Legal:</strong> PageWise is NOT a substitute for professional legal counsel. Always consult a licensed attorney for legal matters.</p>
+      <h2>4. AI-Generated Content Disclaimer</h2>
+      <p>
+        PageWise uses artificial intelligence to generate responses and
+        insights. AI-generated content may contain inaccuracies, omissions,
+        or outdated information. Users are responsible for independently
+        verifying important information before relying on it.
+      </p>
 
-      <h2>5. Paid Tiers</h2>
-      <p>Starter (₹200/$5.60/month) and Pro (₹500/$10.90/month) subscriptions are:</p>
+      <h2>5. Medical and Legal Disclaimer</h2>
+
+      <p>
+        <strong>Medical Information:</strong> PageWise is not a substitute
+        for professional medical advice, diagnosis, or treatment. Always
+        consult qualified healthcare professionals regarding medical
+        decisions.
+      </p>
+
+      <p>
+        <strong>Legal Information:</strong> PageWise is not a substitute
+        for professional legal advice. Always consult a licensed attorney
+        regarding legal matters.
+      </p>
+
+      <h2>6. Paid Subscriptions</h2>
+
+      <p>
+        PageWise may offer paid subscription plans and premium features.
+      </p>
+
+      <p>
+        Subscription pricing, features, and limits are displayed within
+        the application and may change over time.
+      </p>
+
+      <p>
+        Subscriptions may automatically renew unless cancelled in accordance
+        with the applicable billing terms.
+      </p>
+
+      <h2>7. Intellectual Property</h2>
+
+      <p>
+        The PageWise platform, software, branding, trademarks, and related
+        materials are owned by Saevora.
+      </p>
+
+      <p>
+        Users retain ownership of documents and content they upload.
+      </p>
+
+      <h2>8. Limitation of Liability</h2>
+
+      <p>
+        PageWise is provided on an &quot;as is&quot; and &quot;as available&quot;
+        basis.
+      </p>
+
+      <p>
+        To the fullest extent permitted by law, Saevora shall not be liable
+        for:
+      </p>
+
       <ul>
-        <li>Auto-renewing until you cancel</li>
-        <li>Refundable within 7 days of purchase</li>
-        <li>Cancelable anytime without penalty</li>
+        <li>Errors or inaccuracies in AI-generated responses</li>
+        <li>Service interruptions or downtime</li>
+        <li>Loss of data</li>
+        <li>Decisions made based on information generated by the service</li>
+        <li>Indirect, incidental, or consequential damages</li>
       </ul>
 
-      <h2>6. Limitation of Liability</h2>
-      <p>PageWise is provided "as-is." We are not liable for:</p>
-      <ul>
-        <li>Errors or inaccuracies in AI analysis</li>
-        <li>Service interruptions</li>
-        <li>Decisions made based on PageWise output</li>
-        <li>Any indirect or consequential damages</li>
-      </ul>
+      <h2>9. Changes to the Service</h2>
 
-      <h2>7. Changes to Service</h2>
-      <p>We reserve the right to modify PageWise, including features, pricing, or availability, with notice to users.</p>
+      <p>
+        We may modify, suspend, or discontinue features of the service at
+        any time. We may also update these Terms from time to time.
+      </p>
 
-      <h2>8. Contact</h2>
-      <p>Questions? Email us at <strong>support@pagewise.app</strong></p>
+      <h2>10. Contact</h2>
 
-      <p style={{ marginTop: '40px', fontSize: '12px', color: '#666' }}>Last updated: June 2026</p>
+      <p>
+        Questions regarding these Terms may be directed to:
+      </p>
+
+      <p>
+        <strong>support@pagewise.app</strong>
+      </p>
+
+      <p
+        style={{
+          marginTop: "40px",
+          fontSize: "12px",
+          color: "#666",
+        }}
+      >
+        Last Updated: June 2026
+      </p>
     </div>
   );
 }
