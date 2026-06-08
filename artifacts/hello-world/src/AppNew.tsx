@@ -388,7 +388,7 @@ useEffect(() => {
   setPdfMeta(null); setSmartQs([]);
   localStorage.removeItem("pagewise_session");
 };
-   if (!session) return <Auth />;
+  // if (!session) return <Auth />;
   return (
     <>
       <SplashScreen visible={splash} />
