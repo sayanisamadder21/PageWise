@@ -66,18 +66,21 @@ export default function ChatLayout({
   pdfText, pdfName,
 }: ChatLayoutProps) {
 
-  const btnStyle = (active = false): React.CSSProperties => ({
+  const btnStyle = (active = false, disabled = false): React.CSSProperties => ({
     flexShrink: 0,
     background: active ? C.dark : "transparent",
     border: `1px solid ${active ? C.orange : C.border}`,
     borderRadius: 8, padding: "5px 9px",
     color: active ? C.gold : C.textMid,
-    cursor: "pointer", transition: "all 0.15s",
+    cursor: disabled ? "not-allowed" : "pointer",
+    transition: "all 0.15s",
     fontFamily: "'Montserrat', sans-serif", fontSize: 11, fontWeight: 600,
     display: "flex", alignItems: "center", gap: 4,
+    opacity: disabled ? 0.5 : 1,
   });
   const isMobile = window.innerWidth <= 640;
   const isSendDisabled = !input.trim() || loading || streaming;
+  const isBusy = loading || streaming;
 
   return (
     <div style={{
@@ -92,9 +95,9 @@ export default function ChatLayout({
         @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
         @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
         .msg { animation: fadeUp 0.22s ease forwards; }
-        .pill:hover { background:${C.softBg}!important; border-color:${C.orange}!important; color:${C.dark}!important; }
+        .pill:hover:not(:disabled) { background:${C.softBg}!important; border-color:${C.orange}!important; color:${C.dark}!important; }
         .send-btn:hover:not(:disabled) { background:#CC6F00!important; }
-        .mode-btn:hover { background:${C.softBg}!important; }
+        .mode-btn:hover:not(:disabled) { background:${C.softBg}!important; }
         ::-webkit-scrollbar { width:3px }
         ::-webkit-scrollbar-thumb { background:${C.muted}; border-radius:2px }
         * { box-sizing:border-box; }
@@ -269,14 +272,15 @@ export default function ChatLayout({
           <div className="msg">
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <div style={{ fontSize: 9, color: C.orange, letterSpacing: 3, textTransform: "uppercase", fontWeight: 700 }}>Try asking</div>
-              <button onClick={generateSmartQs} disabled={loadingQs} style={{
+              <button onClick={generateSmartQs} disabled={loadingQs || isBusy} style={{
                 background: loadingQs ? C.softBg : C.dark,
                 border: `1px solid ${C.orange}`, borderRadius: 20,
                 padding: "3px 10px", fontSize: 10,
                 color: loadingQs ? C.textMid : C.gold,
-                cursor: loadingQs ? "not-allowed" : "pointer",
+                cursor: loadingQs || isBusy ? "not-allowed" : "pointer",
                 fontFamily: "'Montserrat',sans-serif", fontWeight: 600,
                 display: "inline-flex", alignItems: "center", gap: 4,
+                opacity: isBusy ? 0.5 : 1,
               }}>
                 {loadingQs ? <span><Dots /> thinking</span> : "✦ Ask for me"}
               </button>
@@ -284,25 +288,34 @@ export default function ChatLayout({
             {smartQs.length === 0 && !loadingQs && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {SUGGESTIONS.map((q, i) => (
-                  <button key={i} className="pill" onClick={() => send(q)} style={{
-                    background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 20,
-                    padding: "5px 13px", fontSize: 11, color: C.textMid, cursor: "pointer",
-                    transition: "all 0.15s", fontFamily: "'Montserrat',sans-serif", fontWeight: 500,
-                  }}>{q}</button>
+                  <button key={i} className="pill" onClick={() => send(q)}
+                    disabled={isBusy}
+                    style={{
+                      background: C.cardBg, border: `1px solid ${C.border}`, borderRadius: 20,
+                      padding: "5px 13px", fontSize: 11, color: C.textMid,
+                      cursor: isBusy ? "not-allowed" : "pointer",
+                      transition: "all 0.15s", fontFamily: "'Montserrat',sans-serif", fontWeight: 500,
+                      opacity: isBusy ? 0.5 : 1,
+                    }}>{q}</button>
                 ))}
               </div>
             )}
             {smartQs.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {smartQs.map((q, i) => (
-                  <button key={i} className="pill" onClick={() => { send(q); }} style={{
-                    background: C.cardBg, border: `1px solid ${C.orange}`,
-                    borderRadius: 10, padding: "8px 14px", fontSize: 13,
-                    color: C.textMid, cursor: "pointer", transition: "all 0.15s",
-                    textAlign: "left", lineHeight: 1.4,
-                    display: "flex", alignItems: "flex-start", gap: 8,
-                    fontFamily: "'Montserrat',sans-serif", fontWeight: 500,
-                  }}>
+                  <button key={i} className="pill" onClick={() => { send(q); }}
+                    disabled={isBusy}
+                    style={{
+                      background: C.cardBg, border: `1px solid ${C.orange}`,
+                      borderRadius: 10, padding: "8px 14px", fontSize: 13,
+                      color: C.textMid,
+                      cursor: isBusy ? "not-allowed" : "pointer",
+                      transition: "all 0.15s",
+                      textAlign: "left", lineHeight: 1.4,
+                      display: "flex", alignItems: "flex-start", gap: 8,
+                      fontFamily: "'Montserrat',sans-serif", fontWeight: 500,
+                      opacity: isBusy ? 0.5 : 1,
+                    }}>
                     <span style={{ color: C.orange, fontWeight: 700, fontSize: 11, flexShrink: 0, marginTop: 1 }}>{i + 1}.</span>
                     {q}
                   </button>
@@ -338,18 +351,21 @@ export default function ChatLayout({
             }} />
             <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", overflowX: "auto" }}>
               {PERSONAS.map(p => (
-                <button key={p.id} className="mode-btn" onClick={() => {
-                  setPersona(p.id);
-                  if (["insights", "studynotes", "examgen", "summarizer"].includes(p.id) && pdfText) {
-                    const autoPrompts: Record<string, string> = {
-                      insights: "Extract the key insights from this document",
-                      studynotes: "Generate comprehensive study notes from this document",
-                      examgen: "Generate exam questions from this document",
-                      summarizer: "Give me a TL;DR summary of this document in 5 bullet points",
-                    };
-                    send(autoPrompts[p.id]);
-                  }
-                }} title={p.desc} style={btnStyle(persona === p.id)}>
+                <button key={p.id} className="mode-btn"
+                  disabled={isBusy}
+                  onClick={() => {
+                    if (isBusy) return;
+                    setPersona(p.id);
+                    if (["insights", "studynotes", "examgen", "summerizer"].includes(p.id) && pdfText) {
+                      const autoPrompts: Record<string, string> = {
+                        insights: "Extract the key insights from this document",
+                        studynotes: "Generate comprehensive study notes from this document",
+                        examgen: "Generate exam questions from this document",
+                        summerizer: "Give me a TL;DR summery of this document in 5 bullet points",
+                      };
+                      send(autoPrompts[p.id]);
+                    }
+                  }} title={p.desc} style={btnStyle(persona === p.id, isBusy)}>
                   <Icon name={p.icon} size={11} color={persona === p.id ? C.gold : C.textMid} />
                   {p.label}
                 </button>
