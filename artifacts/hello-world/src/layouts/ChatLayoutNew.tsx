@@ -212,13 +212,23 @@ export default function ChatLayout({
                       </>
                     )}
                   </button>
-                  <button onClick={() => exportPdf(
-                    [
-                      ...(messages[i - 1]?.role === "user" ? [{ role: "user" as const, content: messages[i - 1].text }] : []),
-                      { role: "assistant" as const, content: msg.text }
-                    ],
-                    pdfName || "chat", {}
-                  )} style={{
+                  <button onClick={() => {
+                    const questionText = messages[i - 1]?.text || "answer";
+                    const slug = questionText
+                      .toLowerCase()
+                      .replace(/[^a-z0-9 ]/g, "")
+                      .trim()
+                      .split(" ")
+                      .slice(0, 4)
+                      .join("-");
+                    exportPdf(
+                      [
+                        ...(messages[i - 1]?.role === "user" ? [{ role: "user" as const, content: messages[i - 1].text }] : []),
+                        { role: "assistant" as const, content: msg.text }
+                      ],
+                      `pagewise-${slug}.pdf`, {}
+                    );
+                  }} style={{
                     marginTop: 5,
                     background: "transparent",
                     border: `1.5px solid ${C.orange}`,
