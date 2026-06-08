@@ -146,6 +146,36 @@ export default function AppWrapper() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const hasPDF   = !!pdfText;
+  // ── Restore last session from localStorage ──
+useEffect(() => {
+  const saved = localStorage.getItem("pagewise_session");
+  if (saved) {
+    try {
+      const { text, name, meta, msgs, persona: p, lang } = JSON.parse(saved);
+      if (text) {
+        setPdfText(text);
+        setPdfName(name || "");
+        setPdfMeta(meta || null);
+        setMessages(msgs || []);
+        setPersona(p || "analyst");
+        setLanguage(lang || "English");
+      }
+    } catch {}
+  }
+}, []);
+
+// ── Save session to localStorage on changes ──
+useEffect(() => {
+  if (!pdfText) return;
+  localStorage.setItem("pagewise_session", JSON.stringify({
+    text: pdfText,
+    name: pdfName,
+    meta: pdfMeta,
+    msgs: messages,
+    persona,
+    lang: language,
+  }));
+}, [pdfText, pdfName, pdfMeta, messages, persona, language]);
   const currentP = PERSONAS.find(p => p.id === persona)!;
 
   // Scroll to bottom on new messages
@@ -354,8 +384,10 @@ useEffect(() => {
   };
 
   const reset = () => {
-    setPdfText(""); setPdfName(""); setMessages([]); setPdfMeta(null); setSmartQs([]);
-  };
+  setPdfText(""); setPdfName(""); setMessages([]); 
+  setPdfMeta(null); setSmartQs([]);
+  localStorage.removeItem("pagewise_session");
+};
   // if (!session) return <Auth />;
   return (
     <>
