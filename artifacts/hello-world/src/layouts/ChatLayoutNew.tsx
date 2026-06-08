@@ -345,7 +345,7 @@ export default function ChatLayout({
                       insights: "Extract the key insights from this document",
                       studynotes: "Generate comprehensive study notes from this document",
                       examgen: "Generate exam questions from this document",
-                      summerizer: "Give me a TL;DR summery of this document in 5 bullet points",
+                      summarizer: "Give me a TL;DR summary of this document in 5 bullet points",
                     };
                     send(autoPrompts[p.id]);
                   }
