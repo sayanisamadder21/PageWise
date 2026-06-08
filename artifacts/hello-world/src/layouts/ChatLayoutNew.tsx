@@ -145,7 +145,8 @@ export default function ChatLayout({
           )}
           <a href="https://tally.so/r/yPzqV8" target="_blank" rel="noopener noreferrer"
             style={{
-              background: C.orange, border: "none", borderRadius: 6, display: isMobile ? "none" : "inline-block",
+              background: C.orange, border: "none", borderRadius: 6,
+              display: isMobile ? "none" : "inline-block",
               padding: "5px 11px", color: C.dark, fontSize: 10,
               cursor: "pointer", fontFamily: "'Montserrat',sans-serif",
               fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap",
@@ -212,7 +213,10 @@ export default function ChatLayout({
                     )}
                   </button>
                   <button onClick={() => exportPdf(
-                    messages.map(m => ({ role: m.role as "assistant" | "user", content: m.text })),
+                    [
+                      ...(messages[i - 1]?.role === "user" ? [{ role: "user" as const, content: messages[i - 1].text }] : []),
+                      { role: "assistant" as const, content: msg.text }
+                    ],
                     pdfName || "chat", {}
                   )} style={{
                     marginTop: 5,
