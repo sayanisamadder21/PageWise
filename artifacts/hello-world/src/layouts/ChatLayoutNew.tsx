@@ -83,8 +83,8 @@ export default function ChatLayout({
     <div style={{
       display: "flex",
       flexDirection: "column",
-      height: "100vh",         // ← locks to viewport
-      overflow: "hidden",      // ← prevents full page scroll
+      height: "100vh",
+      overflow: "hidden",
       background: C.bg,
       fontFamily: "'Montserrat', sans-serif",
     }}>
@@ -102,7 +102,7 @@ export default function ChatLayout({
         select { font-family:'Montserrat',sans-serif; }
       `}</style>
 
-      {/* ── FIXED HEADER ── */}
+      {/* FIXED HEADER */}
       <div style={{
         background: C.dark, padding: "10px 18px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -110,7 +110,6 @@ export default function ChatLayout({
       }}>
         <img src="/header-logo.png" alt="PageWise"
           style={{ height: 40, width: "auto", display: "block", objectFit: "contain" }} />
-
         <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
           {pdfMeta && (
             <div style={{
@@ -127,7 +126,6 @@ export default function ChatLayout({
             fontSize: 10, cursor: "pointer",
             fontFamily: "'Montserrat',sans-serif", fontWeight: 600,
           }}>New PDF</button>
-
           {installPrompt && (
             <button onClick={handleInstall} style={{
               background: C.orange, border: "none", borderRadius: 6,
@@ -152,25 +150,18 @@ export default function ChatLayout({
               cursor: "pointer", fontFamily: "'Montserrat',sans-serif",
               fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap",
             }}>🚀 Join Waitlist</a>
-        </div>
           <button onClick={onLogout} style={{
-  background: "transparent",
-  border: "1px solid #d97706",
-  borderRadius: 6,
-  padding: "5px 11px",
-  color: C.orange,
-  fontSize: 10,
-  cursor: "pointer",
-  fontFamily: "'Montserrat',sans-serif",
-  fontWeight: 700,
-  whiteSpace: "nowrap",
-}}>Log out</button>
+            background: "transparent", border: "1px solid #d97706",
+            borderRadius: 6, padding: "5px 11px", color: C.orange,
+            fontSize: 10, cursor: "pointer",
+            fontFamily: "'Montserrat',sans-serif", fontWeight: 700, whiteSpace: "nowrap",
+          }}>Log out</button>
+        </div>
       </div>
 
-      {/* ── SCROLLABLE MESSAGES AREA ── */}
+      {/* SCROLLABLE MESSAGES AREA */}
       <div style={{
-        flex: 1,
-        overflowY: "auto",   // ← ONLY this scrolls
+        flex: 1, overflowY: "auto",
         padding: "20px 20px 8px",
         display: "flex", flexDirection: "column", gap: 14,
       }}>
@@ -199,46 +190,41 @@ export default function ChatLayout({
                 color: msg.role === "user" ? C.bg : C.dark,
                 lineHeight: 1.75, fontFamily: "'Montserrat',sans-serif",
               }} dangerouslySetInnerHTML={{ __html: fmt(msg.text) }} />
-              {msg.role === "assistant" && ( <>
-                <button onClick={() => copy(msg.text, i)} style={{
-                  marginTop: 5,
-                  background: copied === i ? C.orange : C.cardBg,
-                  border: `1.5px solid ${C.orange}`,
-                  borderRadius: 7, cursor: "pointer", padding: "4px 10px",
-                  color: copied === i ? C.dark : C.orange,
-                  display: "flex", alignItems: "center", gap: 5,
-                  fontSize: 10, fontFamily: "'Montserrat',sans-serif", fontWeight: 700,
-                  transition: "all 0.15s",
-                }}>
-                  {copied === i ? "✓ Copied!" : (
-                    <>
-                      <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                      </svg>
-                      Copy
-                    </>
-                  )}
-                </button>
-              <button onClick={() => exportPdf( messages.map(m => ({ role: m.role as "assistant" | "user", content: m.text })), pdfName || "chat", {} 
-)} style={{
-  marginTop: 5,
-  background: "transparent",
-  border: `1.5px solid ${C.orange}`,
-  borderRadius: 7,
-  cursor: "pointer",
-  padding: "4px 10px",
-  color: C.orange,
-  display: "flex",
-  alignItems: "center",
-  gap: 5,
-  fontSize: 10,
-  fontFamily: "'Montserrat',sans-serif",
-  fontWeight: 700,
-  transition: "all 0.15s",
-}}>
-  📄 Export PDF
-</button> 
-</>)}
+              {msg.role === "assistant" && (
+                <>
+                  <button onClick={() => copy(msg.text, i)} style={{
+                    marginTop: 5,
+                    background: copied === i ? C.orange : C.cardBg,
+                    border: `1.5px solid ${C.orange}`,
+                    borderRadius: 7, cursor: "pointer", padding: "4px 10px",
+                    color: copied === i ? C.dark : C.orange,
+                    display: "flex", alignItems: "center", gap: 5,
+                    fontSize: 10, fontFamily: "'Montserrat',sans-serif", fontWeight: 700,
+                    transition: "all 0.15s",
+                  }}>
+                    {copied === i ? "✓ Copied!" : (
+                      <>
+                        <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                        Copy
+                      </>
+                    )}
+                  </button>
+                  <button onClick={() => exportPdf(
+                    messages.map(m => ({ role: m.role as "assistant" | "user", content: m.text })),
+                    pdfName || "chat", {}
+                  )} style={{
+                    marginTop: 5,
+                    background: "transparent",
+                    border: `1.5px solid ${C.orange}`,
+                    borderRadius: 7, cursor: "pointer", padding: "4px 10px",
+                    color: C.orange, display: "flex", alignItems: "center", gap: 5,
+                    fontSize: 10, fontFamily: "'Montserrat',sans-serif", fontWeight: 700,
+                    transition: "all 0.15s",
+                  }}>📄 Export PDF</button>
+                </>
+              )}
             </div>
             {msg.role === "user" && (
               <div style={{
@@ -281,7 +267,6 @@ export default function ChatLayout({
                 {loadingQs ? <span><Dots /> thinking</span> : "✦ Ask for me"}
               </button>
             </div>
-
             {smartQs.length === 0 && !loadingQs && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {SUGGESTIONS.map((q, i) => (
@@ -293,7 +278,6 @@ export default function ChatLayout({
                 ))}
               </div>
             )}
-
             {smartQs.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {smartQs.map((q, i) => (
@@ -319,41 +303,45 @@ export default function ChatLayout({
             )}
           </div>
         )}
-
         <div ref={bottomRef} />
       </div>
 
-      {/* ── FIXED BOTTOM TOOLBAR ── */}
+      {/* FIXED BOTTOM TOOLBAR */}
       <div style={{
         background: C.cardBg,
         borderTop: `1px solid ${C.border}`,
         padding: "10px 16px 14px",
-        flexShrink: 0,           // ← never shrinks, stays fixed at bottom
+        flexShrink: 0,
       }}>
         {/* Mode + Language row */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
           <span style={{ fontSize: 9, color: C.muted, letterSpacing: 3, textTransform: "uppercase", fontWeight: 700, flexShrink: 0 }}>Mode</span>
           <div style={{ position: "relative", flex: 1, overflow: "hidden" }}>
-  <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", overflowX: "auto" }}>
-            {PERSONAS.map(p => (
-              <button key={p.id} className="mode-btn" onClick={() => {
-  setPersona(p.id);
-  if (["insights", "studynotes", "examgen", "summerizer"].includes(p.id) && pdfText) {
-    const autoPrompts: Record<string, string> = {
-      insights: "Extract the key insights from this document",
-      studynotes: "Generate comprehensive study notes from this document",
-      examgen: "Generate exam questions from this document",
-      summerizer: "Give me a TL;DR summery of this document in 5 bullet points",
-    };
-    send(autoPrompts[p.id]);
-  }
-}}title={p.desc} style={btnStyle(persona === p.id)}>
-                <Icon name={p.icon} size={11} color={persona === p.id ? C.gold : C.textMid} />
-                {p.label}
-              </button>
-            ))}
+            <div style={{
+              position: "absolute", right: 0, top: 0, bottom: 0, width: 40,
+              zIndex: 2, pointerEvents: "none",
+              background: `linear-gradient(to right, transparent, ${C.cardBg})`,
+            }} />
+            <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", overflowX: "auto" }}>
+              {PERSONAS.map(p => (
+                <button key={p.id} className="mode-btn" onClick={() => {
+                  setPersona(p.id);
+                  if (["insights", "studynotes", "examgen", "summerizer"].includes(p.id) && pdfText) {
+                    const autoPrompts: Record<string, string> = {
+                      insights: "Extract the key insights from this document",
+                      studynotes: "Generate comprehensive study notes from this document",
+                      examgen: "Generate exam questions from this document",
+                      summerizer: "Give me a TL;DR summery of this document in 5 bullet points",
+                    };
+                    send(autoPrompts[p.id]);
+                  }
+                }} title={p.desc} style={btnStyle(persona === p.id)}>
+                  <Icon name={p.icon} size={11} color={persona === p.id ? C.gold : C.textMid} />
+                  {p.label}
+                </button>
+              ))}
+            </div>
           </div>
-          
           <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
             <span style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", fontWeight: 700 }}>Lang</span>
             <select value={language} onChange={e => setLanguage(e.target.value)} style={{
@@ -385,7 +373,6 @@ export default function ChatLayout({
           >PDF+</button>
           <input ref={fileRef} type="file" accept=".pdf" style={{ display: "none" }}
             onChange={e => e.target.files && handleFile(e.target.files[0])} />
-
           <textarea ref={textareaRef} value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
@@ -397,7 +384,6 @@ export default function ChatLayout({
               resize: "none", lineHeight: 1.6, paddingTop: 5, paddingBottom: 5, maxHeight: 90,
             }}
           />
-
           <button className="send-btn" onClick={() => send()} disabled={isSendDisabled}
             style={{
               background: isSendDisabled ? C.muted : C.orange,
@@ -414,7 +400,6 @@ export default function ChatLayout({
           <div style={{ fontSize: 9, color: C.orange, fontWeight: 700, letterSpacing: 1 }}>GEMINI 2.5 FLASH</div>
         </div>
       </div>
-    </div>
     </div>
   );
 }
