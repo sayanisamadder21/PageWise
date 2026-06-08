@@ -340,7 +340,7 @@ export default function ChatLayout({
               {PERSONAS.map(p => (
                 <button key={p.id} className="mode-btn" onClick={() => {
                   setPersona(p.id);
-                  if (["insights", "studynotes", "examgen", "summerizer"].includes(p.id) && pdfText) {
+                  if (["insights", "studynotes", "examgen", "summarizer"].includes(p.id) && pdfText) {
                     const autoPrompts: Record<string, string> = {
                       insights: "Extract the key insights from this document",
                       studynotes: "Generate comprehensive study notes from this document",
