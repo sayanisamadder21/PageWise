@@ -147,6 +147,7 @@ export default function AppWrapper() {
   const fileRef     = useRef<HTMLInputElement>(null);
   const bottomRef   = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortRef    = useRef<AbortController | null>(null);
 
   const hasPDF = !!pdfText;
 
@@ -301,14 +302,19 @@ export default function AppWrapper() {
     }, 22);
   };
 
-  const send = async (text?: string) => {
+  const send = async (text?: string, isRetry = false) => {
     const q = (text || input).trim();
     if (!q || !pdfText || loading || streaming) return;
-    setInput("");
-    setShowHints(false);
-    setMessages(prev => [...prev, { role: "user", text: q, ts: Date.now() }]);
+    if (!isRetry) {
+      setInput("");
+      setShowHints(false);
+      setMessages(prev => [...prev, { role: "user", text: q, ts: Date.now() }]);
+    }
     setLoading(true);
     setStreaming(true);
+
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
 
     const langInstruction = language !== "English" ? `\nAlways respond in ${language}.` : "";
     const fullPrompt = currentP.sys + langInstruction + "\n\nDocument Content:\n" + pdfText.slice(0, 12000) + "\n\nUser Question: " + q;
@@ -317,15 +323,28 @@ export default function AppWrapper() {
       const res = await fetch(QUERY_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: abortRef.current.signal,
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-          generationConfig: { thinkingConfig: { thinkingBudget: 0 } },
+          generationConfig: {
+            thinkingConfig: { thinkingBudget: 0 },
+            maxOutputTokens: 1024,
+          },
         }),
       });
       const data = await res.json();
 
       if (!res.ok) {
         const errMsg: string = data?.error?.message || `API error ${res.status}`;
+
+        // Auto-retry once on 503
+        if (res.status === 503 && !isRetry) {
+          setMessages(prev => [...prev, { role: "assistant", text: "⏳ Retrying...", ts: Date.now() }]);
+          await new Promise(r => setTimeout(r, 2000));
+          setMessages(prev => prev.filter(m => m.text !== "⏳ Retrying..."));
+          return send(q, true);
+        }
+
         const retryMatch = errMsg.match(/retry in ([\d.]+)s/i);
         const retryHint = retryMatch ? ` Please wait ${Math.ceil(parseFloat(retryMatch[1]))} seconds and try again.` : "";
         const isQuota = res.status === 429;
@@ -341,7 +360,8 @@ export default function AppWrapper() {
       const fullText: string = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
       setLoading(false);
       revealWords(fullText);
-    } catch {
+    } catch (err: any) {
+      if (err?.name === "AbortError") return;
       setLoading(false);
       setStreaming(false);
       setMessages(prev => [...prev, { role: "assistant", text: "⚠️ Could not reach the AI service. Check your connection and try again.", ts: Date.now() }]);
@@ -359,7 +379,10 @@ export default function AppWrapper() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { thinkingConfig: { thinkingBudget: 0 } },
+          generationConfig: {
+            thinkingConfig: { thinkingBudget: 0 },
+            maxOutputTokens: 1024,
+          },
         }),
       });
       const data = await res.json();
