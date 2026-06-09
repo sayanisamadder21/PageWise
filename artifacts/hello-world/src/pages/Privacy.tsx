@@ -66,12 +66,11 @@ export default function Privacy({ onBack }: PrivacyProps) {
 
       <h2>4. Free Tier Users</h2>
       <p>
-        Free tier users' session data — including uploaded document content
-        and chat history — is stored locally in their browser (localStorage)
-        and is not transmitted to or stored on our servers beyond what is
-        required for AI processing.
-      </p>
-
+        Free tier users' session data — including uploaded document references and interaction history, may be stored locally in the browser (localStorage). Some data may still be temporarily processed on servers to generate AI responses.
+        </p>
+        <p>
+          Document content is transmitted to Google Gemini solely to generate you AI responses and it is not retained by us beyond that interaction.
+        </p>
       <h2>5. Document Processing</h2>
       <p>
         Documents uploaded to PageWise are processed solely for the purpose
@@ -126,12 +125,10 @@ export default function Privacy({ onBack }: PrivacyProps) {
 
       <h2>8. Data Retention</h2>
       <p>
-        Data retention practices may vary depending on account settings,
-        product features, and future service improvements.
+        We retain user data only as long as necessary to provide the service or as required for security, debugging, or legal obligations.
       </p>
       <p>
-        We retain information only as necessary to provide and improve the
-        service, comply with legal obligations, and maintain security.
+        Users may request deletion of their account and associated data at any time by contacting us.
       </p>
 
       <h2>9. Security</h2>
@@ -145,6 +142,7 @@ export default function Privacy({ onBack }: PrivacyProps) {
       <ul>
         <li>Stop using the service at any time</li>
         <li>Request information regarding your account data where applicable</li>
+        <li> You may request deletion of your account and associated data at any time by contacting us</li>
         <li>Contact us with privacy-related questions</li>
       </ul>
       <p>
