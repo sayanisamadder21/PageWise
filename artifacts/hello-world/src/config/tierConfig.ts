@@ -2,82 +2,209 @@ export type Tier = "free" | "starter" | "pro";
 
 export interface TierConfig {
   name: string;
+  authRequired: boolean;
 
   // Usage Limits
-  dailyQuestions: number;
-  pdfsPerDay?: number;
-  unlimitedPdfs: boolean;
+  dailyQuestions: number;           // -1 = unlimited
+  pdfsPerDay: number;               // -1 = unlimited
   maxContextChars: number;
+  maxExportsPerDay: number;         // -1 = unlimited
+
+  // Chat History
+  chatHistory: boolean;
+  chatHistoryLimit: number;         // -1 = unlimited, 0 = none
+  chatHistoryRetentionDays: number; // -1 = forever, 0 = none
+  chatSearch: boolean;
+  namedChats: boolean;
 
   // Features
-  chatHistory: boolean;
   pdfExport: boolean;
-  customMode: boolean;
-  hipaaMode: boolean;
-  search: boolean;
-  folders: boolean;
+  customMode: boolean;              // TODO: Pro phase 2
+  hipaaMode: boolean;               // TODO: Pro phase 2
+  folders: boolean;                 // TODO: Pro phase 2
+  workspaces: boolean;              // TODO: Pro phase 2
+  largeDocumentSupport: boolean;
+  priorityPerformance: boolean;
 
-  // General Access
+  // Mode Access
   modes: number;
-  languages: number;
+  unlockedModeIds: string[];
+
+  // Storage
+  storageType: "localStorage" | "supabase";
+
+  // Pricing
+  monthlyPriceUSD: number;
+  yearlyPriceUSD: number;
+  monthlyPriceINR: number;
+  yearlyPriceINR: number;
+
+  // Abuse Prevention
+  ipTracking: boolean;
 }
+
+export const MODES = {
+  ANALYST: "analyst",
+  TEACHER: "teacher",
+  LAWYER: "lawyer",
+  TLDR: "tldr",
+  MEDICAL: "medical",
+  KEY_INSIGHTS: "key_insights",
+  STUDY_NOTES: "study_notes",
+  EXAM_GENERATOR: "exam_generator",
+} as const;
+
+export const ALL_MODES = Object.values(MODES);
+
+export const FREE_MODES = [
+  MODES.ANALYST,
+  MODES.TEACHER,
+  MODES.LAWYER,
+  MODES.TLDR,
+  MODES.MEDICAL,
+  MODES.KEY_INSIGHTS,
+];
+
+/*
+ * Daily Questions Cap Reasoning:
+ * Free (30)     — cost protection + enough to experience value
+ * Starter (100) — fair use, covers most professional workflows
+ * Pro (-1)      — unlimited fair use, trust-based
+ */
 
 export const tierConfig: Record<Tier, TierConfig> = {
   free: {
-    name: "Free",
+    name: "Free",  // Alternative: "Try" — keeping "Free" for clarity
+    authRequired: false,
 
-    dailyQuestions: 20,
+    dailyQuestions: 30,
     pdfsPerDay: 3,
-    unlimitedPdfs: false,
     maxContextChars: 10000,
+    maxExportsPerDay: 2,
 
     chatHistory: false,
-    pdfExport: false,
-    customMode: false,
-    hipaaMode: false,
-    search: false,
-    folders: false,
+    chatHistoryLimit: 0,
+    chatHistoryRetentionDays: 0,
+    chatSearch: false,
+    namedChats: false,
 
-    modes: 5,
-    languages: 14,
+    pdfExport: true,
+    customMode: false,            // TODO: Pro phase 2
+    hipaaMode: false,             // TODO: Pro phase 2
+    folders: false,               // TODO: Pro phase 2
+    workspaces: false,            // TODO: Pro phase 2
+    largeDocumentSupport: false,
+    priorityPerformance: false,
+
+    modes: 6,
+    unlockedModeIds: FREE_MODES,
+
+    storageType: "localStorage",
+
+    monthlyPriceUSD: 0,
+    yearlyPriceUSD: 0,
+    monthlyPriceINR: 0,
+    yearlyPriceINR: 0,
+
+    ipTracking: true,
   },
 
   starter: {
     name: "Starter",
+    authRequired: true,
 
     dailyQuestions: 100,
-    pdfsPerDay: undefined,
-    unlimitedPdfs: true,
+    pdfsPerDay: -1,
     maxContextChars: 50000,
+    maxExportsPerDay: 10,
 
     chatHistory: true,
-    pdfExport: true,
-    customMode: false,
-    hipaaMode: false,
-    search: false,
-    folders: false,
+    chatHistoryLimit: 5,
+    chatHistoryRetentionDays: 7,
+    chatSearch: false,
+    namedChats: false,
 
-    modes: 5,
-    languages: 14,
+    pdfExport: true,
+    customMode: false,            // TODO: Pro phase 2
+    hipaaMode: false,             // TODO: Pro phase 2
+    folders: false,               // TODO: Pro phase 2
+    workspaces: false,            // TODO: Pro phase 2
+    largeDocumentSupport: false,
+    priorityPerformance: false,
+
+    modes: 8,
+    unlockedModeIds: ALL_MODES,
+
+    storageType: "supabase",
+
+    monthlyPriceUSD: 6,
+    yearlyPriceUSD: 60,           // Save $12 — 2 months free
+    monthlyPriceINR: 199,
+    yearlyPriceINR: 1990,         // Save ₹398 — 2 months free
+
+    ipTracking: false,
   },
 
   pro: {
     name: "Pro",
+    authRequired: true,
 
-    dailyQuestions: -1, // Unlimited (fair use)
-    pdfsPerDay: undefined, // Unlimited
-    unlimitedPdfs: true,
-    maxContextChars: 100000,
+    dailyQuestions: -1,           // unlimited fair use
+    pdfsPerDay: -1,               // unlimited
+    maxContextChars: 1000000,
+    maxExportsPerDay: -1,         // unlimited
 
     chatHistory: true,
-    pdfExport: true,
-    customMode: true,
-    hipaaMode: true,
-    search: true,
-    folders: true,
+    chatHistoryLimit: -1,         // unlimited
+    chatHistoryRetentionDays: -1, // forever
+    chatSearch: true,
+    namedChats: true,
 
-    modes: 5,
-    languages: 14,
+    pdfExport: true,
+    customMode: false,            // TODO: Pro phase 2
+    hipaaMode: false,             // TODO: Pro phase 2
+    folders: false,               // TODO: Pro phase 2
+    workspaces: false,            // TODO: Pro phase 2
+    largeDocumentSupport: true,
+    priorityPerformance: true,
+
+    modes: 8,
+    unlockedModeIds: ALL_MODES,
+
+    storageType: "supabase",
+
+    monthlyPriceUSD: 12,
+    yearlyPriceUSD: 120,          // Save $24 — 2 months free
+    monthlyPriceINR: 499,
+    yearlyPriceINR: 4990,         // Save ₹998 — 2 months free
+
+    ipTracking: false,
   },
 };
-export type tierConfig = typeof tierConfig[Tier];
+
+export type TierConfigType = typeof tierConfig[Tier];
+
+// Helper functions
+export const getTierConfig = (tier: Tier): TierConfig => tierConfig[tier];
+
+export const isFeatureUnlocked = (tier: Tier, mode: string): boolean =>
+  tierConfig[tier].unlockedModeIds.includes(mode);
+
+export const isUnlimited = (value: number): boolean => value === -1;
+
+export const getUpgradeMessage = (tier: Tier): string => {
+  if (tier === "free")
+    return "Upgrade to Starter to unlock all modes, unlimited PDFs and chat history.";
+  if (tier === "starter")
+    return "Upgrade to Pro for unlimited usage, large document support and full chat history.";
+  return "";
+};
+
+/*
+ * Pricing Display Notes:
+ * - Default pricing toggle to YEARLY (anchors lower number perception)
+ * - Show savings as "2 months free" not "X% off"
+ *
+ * Starter: $6/mo | $60/yr (Save $12)  |  ₹199/mo | ₹1,990/yr (Save ₹398)
+ * Pro:    $12/mo | $120/yr (Save $24) |  ₹499/mo | ₹4,990/yr (Save ₹998)
+ */
