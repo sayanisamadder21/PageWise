@@ -356,12 +356,12 @@ export default function ChatLayout({
                   onClick={() => {
                     if (isBusy) return;
                     setPersona(p.id);
-                    if (["insights", "studynotes", "examgen", "summerizer"].includes(p.id) && pdfText) {
+                    if (["insights", "studynotes", "examgen", "summarizer"].includes(p.id) && pdfText) {
                       const autoPrompts: Record<string, string> = {
                         insights: "Extract the key insights from this document",
                         studynotes: "Generate comprehensive study notes from this document",
                         examgen: "Generate exam questions from this document",
-                        summerizer: "Give me a TL;DR summery of this document in 5 bullet points",
+                        summarizer: "Give me a TL;DR summary of this document in 5 bullet points",
                       };
                       send(autoPrompts[p.id]);
                     }
