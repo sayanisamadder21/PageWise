@@ -81,6 +81,7 @@ export const ICONS: Record<string, string> = {
   book:   "M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5V5a2.5 2.5 0 012.5-2.5H20M4 19.5c1.667-1.667 4.333-1.667 6.5 0M20 22V5a2.5 2.5 0 012.5-2.5H22M20 22c1.667-1.667 4.333-1.667 6.5 0",
   pencil: "M12 20h9M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z",
 };
+export const ICON_PATHS = ICONS;
 
 // ── PDF Extraction ─────────────────────────────────────────
 async function extractPDFText(file: File): Promise<{ text: string; pages: number; words: number }> {
