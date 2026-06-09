@@ -1,4 +1,8 @@
-export default function Terms() {
+interface TermsProps {
+  onBack?: () => void;
+}
+
+export default function Terms({ onBack }: TermsProps) {
   return (
     <div
       style={{
@@ -10,6 +14,26 @@ export default function Terms() {
         color: "#333",
       }}
     >
+      {onBack && (
+        <button
+          onClick={onBack}
+          style={{
+            background: "none",
+            border: "none",
+            color: "#d97706",
+            cursor: "pointer",
+            fontSize: "14px",
+            marginBottom: "24px",
+            padding: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          ← Back to PageWise
+        </button>
+      )}
+
       <h1 style={{ color: "#d97706", marginBottom: "30px" }}>
         Terms of Service
       </h1>
@@ -28,7 +52,14 @@ export default function Terms() {
         insights.
       </p>
 
-      <h2>3. User Responsibilities</h2>
+      <h2>3. Age Requirement</h2>
+      <p>
+        PageWise is intended for users aged 13 and above. Users under 18
+        should use the service with parental awareness. By using this
+        service, you confirm that you are at least 13 years old.
+      </p>
+
+      <h2>4. User Responsibilities</h2>
       <ul>
         <li>You are responsible for the documents and content you upload.</li>
         <li>
@@ -45,7 +76,7 @@ export default function Terms() {
         </li>
       </ul>
 
-      <h2>4. AI-Generated Content Disclaimer</h2>
+      <h2>5. AI-Generated Content Disclaimer</h2>
       <p>
         PageWise uses artificial intelligence to generate responses and
         insights. AI-generated content may contain inaccuracies, omissions,
@@ -53,60 +84,58 @@ export default function Terms() {
         verifying important information before relying on it.
       </p>
 
-      <h2>5. Medical and Legal Disclaimer</h2>
-
+      <h2>6. Medical and Legal Disclaimer</h2>
       <p>
         <strong>Medical Information:</strong> PageWise is not a substitute
         for professional medical advice, diagnosis, or treatment. Always
         consult qualified healthcare professionals regarding medical
         decisions.
       </p>
-
       <p>
         <strong>Legal Information:</strong> PageWise is not a substitute
         for professional legal advice. Always consult a licensed attorney
         regarding legal matters.
       </p>
 
-      <h2>6. Paid Subscriptions</h2>
-
+      <h2>7. Paid Subscriptions</h2>
       <p>
         PageWise may offer paid subscription plans and premium features.
       </p>
-
       <p>
         Subscription pricing, features, and limits are displayed within
         the application and may change over time.
       </p>
-
       <p>
         Subscriptions may automatically renew unless cancelled in accordance
         with the applicable billing terms.
       </p>
 
-      <h2>7. Intellectual Property</h2>
+      <h2>8. Refunds</h2>
+      <p>
+        All subscription payments are non-refundable unless otherwise
+        required by applicable law. If you believe you have been charged
+        in error, please contact us at{" "}
+        <strong>support@pagewise.app</strong> within 7 days of the charge.
+      </p>
 
+      <h2>9. Intellectual Property</h2>
       <p>
         The PageWise platform, software, branding, trademarks, and related
         materials are owned by Saevora.
       </p>
-
       <p>
         Users retain ownership of documents and content they upload.
       </p>
 
-      <h2>8. Limitation of Liability</h2>
-
+      <h2>10. Limitation of Liability</h2>
       <p>
-        PageWise is provided on an &quot;as is&quot; and &quot;as available&quot;
-        basis.
+        PageWise is provided on an &quot;as is&quot; and &quot;as
+        available&quot; basis.
       </p>
-
       <p>
         To the fullest extent permitted by law, Saevora shall not be liable
         for:
       </p>
-
       <ul>
         <li>Errors or inaccuracies in AI-generated responses</li>
         <li>Service interruptions or downtime</li>
@@ -115,19 +144,23 @@ export default function Terms() {
         <li>Indirect, incidental, or consequential damages</li>
       </ul>
 
-      <h2>9. Changes to the Service</h2>
-
+      <h2>11. Changes to the Service</h2>
       <p>
         We may modify, suspend, or discontinue features of the service at
         any time. We may also update these Terms from time to time.
       </p>
 
-      <h2>10. Contact</h2>
+      <h2>12. Governing Law</h2>
+      <p>
+        These Terms of Service are governed by the laws of India. Any
+        disputes arising under these Terms shall be subject to the exclusive
+        jurisdiction of courts in West Bengal, India.
+      </p>
 
+      <h2>13. Contact</h2>
       <p>
         Questions regarding these Terms may be directed to:
       </p>
-
       <p>
         <strong>support@pagewise.app</strong>
       </p>

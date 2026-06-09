@@ -71,7 +71,7 @@ export const PERSONAS = [
 { id: "examgen", label: "Exam Generator", icon: "pencil", desc: "Generate exam questions", sys: "You are an expert educator who creates high-quality exam questions from documents. Generate a mix of multiple choice, short answer, and essay questions with varying difficulty levels. Include answer hints for each question. Focus on testing deep understanding, not just memorization." },
 ];
 
-export const ICON_PATHS: Record<string, string> = {
+export const ICONS: Record<string, string> = {
   chart: "M18 20V10M12 20V4M6 20v-6",
   grad:  "M22 10v6M2 10l10-5 10 5-10 5zM6 12v5c3 3 9 3 12 0v-5",
   law:   "M12 3v4M3 7h18M7 7l2 9h6l2-9M12 3v4M5 21h14",
@@ -123,6 +123,8 @@ function parsePDF(file: File, resolve: (v: any) => void, reject: (e: any) => voi
 
 // ── AppWrapper ─────────────────────────────────────────────
 export default function AppWrapper() {
+  const [page, setPage] = useState<"home" | "terms" | "privacy">("home");
+
   const [pdfText, setPdfText]     = useState("");
   const [pdfName, setPdfName]     = useState("");
   const [pdfMeta, setPdfMeta]     = useState<{ pages: number; words: string } | null>(null);
@@ -145,37 +147,54 @@ export default function AppWrapper() {
   const bottomRef   = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const hasPDF   = !!pdfText;
-  // ── Restore last session from localStorage ──
-useEffect(() => {
-  const saved = localStorage.getItem("pagewise_session");
-  if (saved) {
-    try {
-      const { text, name, meta, msgs, persona: p, lang } = JSON.parse(saved);
-      if (text) {
-        setPdfText(text);
-        setPdfName(name || "");
-        setPdfMeta(meta || null);
-        setMessages(msgs || []);
-        setPersona(p || "analyst");
-        setLanguage(lang || "English");
-      }
-    } catch {}
-  }
-}, []);
+  const hasPDF = !!pdfText;
 
-// ── Save session to localStorage on changes ──
-useEffect(() => {
-  if (!pdfText) return;
-  localStorage.setItem("pagewise_session", JSON.stringify({
-    text: pdfText,
-    name: pdfName,
-    meta: pdfMeta,
-    msgs: messages,
-    persona,
-    lang: language,
-  }));
-}, [pdfText, pdfName, pdfMeta, messages, persona, language]);
+  // ── Peek at localStorage — show resume UI without auto-loading ──
+  const [savedSession, setSavedSession] = useState<{
+    text: string; name: string; meta: any; msgs: any[]; persona: string; lang: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("pagewise_session");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.text) setSavedSession(parsed);
+      } catch {}
+    }
+  }, []);
+
+  // ── Resume: load saved session into state ──
+  const handleResume = () => {
+    if (!savedSession) return;
+    setPdfText(savedSession.text);
+    setPdfName(savedSession.name || "");
+    setPdfMeta(savedSession.meta || null);
+    setMessages(savedSession.msgs || []);
+    setPersona(savedSession.persona || "analyst");
+    setLanguage(savedSession.lang || "English");
+    setSavedSession(null);
+  };
+
+  // ── Clear session (user wants fresh upload) ──
+  const handleClearSession = () => {
+    localStorage.removeItem("pagewise_session");
+    setSavedSession(null);
+  };
+
+  // ── Save session to localStorage on changes ──
+  useEffect(() => {
+    if (!pdfText) return;
+    localStorage.setItem("pagewise_session", JSON.stringify({
+      text: pdfText,
+      name: pdfName,
+      meta: pdfMeta,
+      msgs: messages,
+      persona,
+      lang: language,
+    }));
+  }, [pdfText, pdfName, pdfMeta, messages, persona, language]);
+
   const currentP = PERSONAS.find(p => p.id === persona)!;
 
   // Scroll to bottom on new messages
@@ -195,24 +214,24 @@ useEffect(() => {
     window.addEventListener("beforeinstallprompt", handler);
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
-  
-  const [session, setSession] = useState<any>(null);
-  
-useEffect(() => {
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    setSession(session);
-    if (session?.user) {
-      createUserIfNotExists(session.user.id);
-    }
-  });
 
-  supabase.auth.onAuthStateChange((_event, session) => {
-    setSession(session);
-    if (session?.user) {
-      createUserIfNotExists(session.user.id);
-    }
-  });
-}, []);
+  const [session, setSession] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        createUserIfNotExists(session.user.id);
+      }
+    });
+
+    supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session?.user) {
+        createUserIfNotExists(session.user.id);
+      }
+    });
+  }, []);
 
   const handleInstall = async () => {
     if (!installPrompt) return;
@@ -220,11 +239,16 @@ useEffect(() => {
     await installPrompt.userChoice;
     setInstallPrompt(null);
   };
+
   const handleLogout = async () => {
-  await supabase.auth.signOut();
-};
+    await supabase.auth.signOut();
+    localStorage.removeItem("pagewise_session");
+    setSavedSession(null);
+    reset();
+  };
+
   const tier = tierConfig.free;
-  const pdfsUploadedToday = 0; 
+  const pdfsUploadedToday = 0;
 
   const handleFile = async (file: File) => {
     if (!file || file.type !== "application/pdf") { alert("Please upload a PDF file."); return; }
@@ -384,10 +408,15 @@ useEffect(() => {
   };
 
   const reset = () => {
-  setPdfText(""); setPdfName(""); setMessages([]); 
-  setPdfMeta(null); setSmartQs([]);
-  localStorage.removeItem("pagewise_session");
-};
+    setPdfText(""); setPdfName(""); setMessages([]);
+    setPdfMeta(null); setSmartQs([]);
+    localStorage.removeItem("pagewise_session");
+  };
+
+  // ── Page routing ───────────────────────────────────────────
+  if (page === "privacy") return <Privacy onBack={() => setPage("home")} />;
+  if (page === "terms")   return <Terms   onBack={() => setPage("home")} />;
+
   // if (!session) return <Auth />;
   return (
     <>
@@ -436,6 +465,11 @@ useEffect(() => {
           tier={tier}
           pdfsUplodedToday={pdfsUploadedToday}
           onLogout={handleLogout}
+          onNavigate={setPage}
+          hasSavedSession={!!savedSession}
+          savedPdfName={savedSession?.name || ""}
+          onResume={handleResume}
+          onClearSession={handleClearSession}
         />
       )}
     </>
