@@ -10,6 +10,8 @@ import {
 
 import { buildPDFContent } from "./pdfUtils";
 
+const BASE_URL = typeof window !== "undefined" ? window.location.origin : "";
+
 
 // ─────────────────────────────────────────────
 // 1. FONT REGISTRATION (CRITICAL FIX)
@@ -17,22 +19,47 @@ import { buildPDFContent } from "./pdfUtils";
 
 Font.register({
   family: "NotoSans",
-  src: "/fonts/NotoSans-Regular.ttf",
+  src: `${BASE_URL}/fonts/NotoSans-Regular.ttf`,
 });
 
 Font.register({
   family: "NotoSansArabic",
-  src: "/fonts/NotoSansArabic-Regular.ttf",
+  src: `${BASE_URL}/fonts/NotoSansArabic-Regular.ttf`,
 });
 
 Font.register({
   family: "NotoSansBengali",
-  src: "/fonts/NotoSansBengali-Regular.ttf",
+  src: `${BASE_URL}/fonts/NotoSansBengali-Regular.ttf`,
 });
 
 Font.register({
   family: "NotoSansDevanagari",
-  src: "/fonts/NotoSansDevanagari-Regular.ttf",
+  src: `${BASE_URL}/fonts/NotoSansDevanagari-Regular.ttf`,
+});
+
+Font.register({
+  family: "NotoSansChinese",
+  src: `${BASE_URL}/fonts/NotoSansSC-Regular.ttf`,
+});
+
+Font.register({
+  family: "NotoSansJapanese",
+  src: `${BASE_URL}/fonts/NotoSansJP-Regular.ttf`,
+});
+
+Font.register({
+  family: "NotoSansKorean",
+  src: `${BASE_URL}/fonts/NotoSansKR-Regular.ttf`,
+});
+
+Font.register({
+  family: "NotoSansTelugu",
+  src: `${BASE_URL}/fonts/NotoSansTelugu-Regular.ttf`,
+});
+
+Font.register({
+  family: "NotoSansTamil",
+  src: `${BASE_URL}/fonts/NotoSansTamil-Regular.ttf`,
 });
 
 
@@ -44,6 +71,11 @@ const detectScript = (text: string) => {
   if (/[\u0600-\u06FF]/.test(text)) return "ar";
   if (/[\u0980-\u09FF]/.test(text)) return "bn";
   if (/[\u0900-\u097F]/.test(text)) return "hi";
+  if (/[\u4E00-\u9FFF]/.test(text)) return "zh";
+  if (/[\u3000-\u30FF]/.test(text)) return "ja";
+  if (/[\uAC00-\uD7AF]/.test(text)) return "ko";
+  if (/[\u0C00-\u0C7F]/.test(text)) return "te";
+  if (/[\u0B80-\u0BFF]/.test(text)) return "ta";
   return "en";
 };
 
@@ -58,6 +90,16 @@ const getFontFamily = (text: string) => {
       return "NotoSansBengali";
     case "hi":
       return "NotoSansDevanagari";
+    case "zh":
+      return "NotoSansChinese";
+    case "ja":
+      return "NotoSansJapanese";
+    case "ko":
+      return "NotoSansKorean";
+    case "te":
+      return "NotoSansTelugu";
+    case "ta":
+      return "NotoSansTamil";
     default:
       return "NotoSans";
   }
