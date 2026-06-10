@@ -229,7 +229,7 @@ export default function ChatLayout({
                         ...(messages[i - 1]?.role === "user" ? [{ role: "user" as const, content: messages[i - 1].text }] : []),
                         { role: "assistant" as const, content: msg.text }
                       ],
-                      `pagewise-${slug}.pdf`, {}
+                      `pagewise-${slug}.pdf`, 
                     );
                   }} style={{
                     marginTop: 5,

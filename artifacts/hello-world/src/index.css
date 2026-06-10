@@ -390,4 +390,41 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+  /* ===== PRINT STYLES ===== */
+@media print {
+  /* Hide everything */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+  /* Hide header and bottom toolbar */
+  body > div > div:first-child,
+  body > div > div:last-child { display: none !important; }
+
+  /* Hide copy/export buttons inside chat */
+  button { display: none !important; }
+
+  /* Show only messages area */
+  body > div > div:nth-child(2) {
+    overflow: visible !important;
+    height: auto !important;
+    padding: 20px !important;
+  }
+
+  /* Print footer */
+  .print-footer {
+    display: flex !important;
+    justify-content: space-between;
+    border-top: 2px solid #FF8A00;
+    padding-top: 8px;
+    margin-top: 20px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 10px;
+  }
+
+  .print-footer-left { color: #FF8A00; font-weight: 700; }
+  .print-footer-center { color: #999; }
+  .print-footer-right { color: #999; }
+}
+
+/* Hide print footer in normal view */
+.print-footer { display: none; }
 }
