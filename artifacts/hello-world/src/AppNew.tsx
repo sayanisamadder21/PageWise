@@ -6,7 +6,8 @@ import Terms from './pages/Terms';
 import { tierConfig } from "./config/tierConfig";
 import { supabase } from "./supabase";
 import Auth from "./components/Auth";
-
+import PdfDocument from "./services/PdfDocument";
+import { pdf } from "@react-pdf/renderer";
 
 // ── Splash Screen ──────────────────────────────────────────
 function SplashScreen({ visible }: { visible: boolean }) {
@@ -151,6 +152,25 @@ export default function AppWrapper() {
 
   const hasPDF = !!pdfText;
 
+  const exportPdfFromMessages = async (
+  msgs: { role: string; text: string; ts?: number }[],
+  filename?: string
+) => {
+  if (!msgs || msgs.length === 0) return;
+
+  const blob = await pdf(
+    <PdfDocument messages={msgs} />
+  ).toBlob();
+
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename || `${pdfName || "pagewise-document"}.pdf`;
+  a.click();
+
+  URL.revokeObjectURL(url);
+};
   // ── Peek at localStorage — show resume UI without auto-loading ──
   const [savedSession, setSavedSession] = useState<{
     text: string; name: string; meta: any; msgs: any[]; persona: string; lang: string;
@@ -461,6 +481,7 @@ export default function AppWrapper() {
           onLogout={handleLogout}
           pdfText={pdfText}
           pdfName={pdfName}
+          onExportPdf={exportPdfFromMessages}
         />
       ) : (
         <PdfLayout

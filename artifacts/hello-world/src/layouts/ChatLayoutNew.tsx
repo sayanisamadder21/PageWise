@@ -1,5 +1,4 @@
 import { C, PERSONAS, SUGGESTIONS, ICON_PATHS, LANGUAGES } from "../AppNew";
-import { exportPdf } from "../services/exportPdf";
 
 function Icon({ name, size = 14, color = "currentColor" }: { name: string; size?: number; color?: string }) {
   return (
@@ -54,6 +53,7 @@ interface ChatLayoutProps {
   onLogout: () => void;
   pdfText: string;
   pdfName: string;
+  onExportPdf? : ( msgs: { role: string; text: string; ts?: number }[], filename?: string) => void;
 }
 
 export default function ChatLayout({
@@ -63,7 +63,7 @@ export default function ChatLayout({
   generateSmartQs, fileRef, bottomRef, textareaRef,
   handleFile, onReset, currentP, fmt,
   language, setLanguage, installPrompt, handleInstall, onLogout,
-  pdfText, pdfName,
+  pdfText, pdfName, onExportPdf,
 }: ChatLayoutProps) {
 
   const btnStyle = (active = false, disabled = false): React.CSSProperties => ({
@@ -224,12 +224,13 @@ export default function ChatLayout({
                       .split(" ")
                       .slice(0, 4)
                       .join("-");
-                    exportPdf(
-                      [
-                        ...(messages[i - 1]?.role === "user" ? [{ role: "user" as const, content: messages[i - 1].text }] : []),
-                        { role: "assistant" as const, content: msg.text }
-                      ],
-                      `pagewise-${slug}.pdf`, 
+                    onExportPdf &&
+                      onExportPdf(
+                        [
+                          ...(messages[i - 1]?.role === "user" ? [{ role: "user", text: messages[i - 1].text }] : []),
+                          { role: "assistant", text: msg.text }
+                        ],
+                        `pagewise-${slug}.pdf`, 
                     );
                   }} style={{
                     marginTop: 5,
