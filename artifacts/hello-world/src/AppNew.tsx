@@ -158,19 +158,23 @@ export default function AppWrapper() {
 ) => {
   if (!msgs || msgs.length === 0) return;
 
+  const mapped = msgs.map(m => ({
+    role: m.role as "user" | "assistant",
+    content: m.text,  // ← only change
+  }));
+
   const blob = await pdf(
-    <PdfDocument messages={msgs} />
+    <PdfDocument messages={mapped} />
   ).toBlob();
 
   const url = URL.createObjectURL(blob);
-
   const a = document.createElement("a");
   a.href = url;
   a.download = filename || `${pdfName || "pagewise-document"}.pdf`;
   a.click();
-
   URL.revokeObjectURL(url);
 };
+
   // ── Peek at localStorage — show resume UI without auto-loading ──
   const [savedSession, setSavedSession] = useState<{
     text: string; name: string; meta: any; msgs: any[]; persona: string; lang: string;
