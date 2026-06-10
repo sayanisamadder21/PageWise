@@ -1,5 +1,5 @@
 import { pdf } from "@react-pdf/renderer";
-import { PageWisePdfDocument } from "./PdfDocument";
+import PdfDocument from "./PdfDocument";
 import React from "react";
 
 type Message = {
@@ -11,7 +11,7 @@ export async function exportPdf(
   messages: Message[],
   fileName = "pagewise-export.pdf"
 ) {
-  const element = React.createElement(PageWisePdfDocument, { messages });
+  const element = React.createElement(PdfDocument, { messages });
   const instance = pdf();
   instance.updateContainer(element);
   const blob = await instance.toBlob();
