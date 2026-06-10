@@ -4,7 +4,7 @@ import ChatLayout from "./layouts/ChatLayoutNew";
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import { tierConfig } from "./config/tierConfig";
-import { supabase, createUserIfNotExists } from "./supabase";
+import { supabase } from "./supabase";
 import Auth from "./components/Auth";
 
 
@@ -219,21 +219,6 @@ export default function AppWrapper() {
 
   const [session, setSession] = useState<any>(null);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        createUserIfNotExists(session.user.id);
-      }
-    });
-
-    supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session?.user) {
-        createUserIfNotExists(session.user.id);
-      }
-    });
-  }, []);
 
   const handleInstall = async () => {
     if (!installPrompt) return;
