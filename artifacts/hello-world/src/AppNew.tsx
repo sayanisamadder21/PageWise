@@ -159,22 +159,26 @@ export default function AppWrapper() {
 ) => {
   if (!msgs || msgs.length === 0) return;
 
-  const mapped = msgs.map(m => ({
-    role: m.role as "user" | "assistant",
-    content: m.text,  // ← only change
-  }));
+  try {
+    const mapped = msgs.map(m => ({
+      role: m.role as "user" | "assistant",
+      content: m.text,
+    }));
 
-  const element = React.createElement(PdfDocument, { messages: mapped });
-  const instance = pdf();
-  instance.updateContainer(element);
-  const blob = await instance.toBlob();
+    const doc = React.createElement(PdfDocument, { messages: mapped });
+    const asPdf = pdf(doc);
+    const blob = await asPdf.toBlob();
 
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename || `${pdfName || "pagewise-document"}.pdf`;
-  a.click();
-  URL.revokeObjectURL(url);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename || `${pdfName || "pagewise"}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("PDF export error:", err);
+    alert("Export failed: " + err);
+  }
 };
 
   // ── Peek at localStorage — show resume UI without auto-loading ──
