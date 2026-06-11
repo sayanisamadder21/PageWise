@@ -162,7 +162,7 @@ export default function AppWrapper() {
   try {
     const mapped = msgs.map(m => ({
       role: m.role as "user" | "assistant",
-      content: m.text,
+      text : m.text,
     }));
 
     const doc = React.createElement(PdfDocument, { messages: mapped });
