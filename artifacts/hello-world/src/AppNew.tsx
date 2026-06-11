@@ -126,7 +126,7 @@ function parsePDF(file: File, resolve: (v: any) => void, reject: (e: any) => voi
 // ── AppWrapper ─────────────────────────────────────────────
 export default function AppWrapper() {
   const [page, setPage] = useState<"home" | "terms" | "privacy">("home");
-  const [usage, setUsage] = useState({ pdf: 0, questions: 0, exports: 0 });
+  const [usage, setUsage] = useState({ pdfs: 0, questions: 0, exports: 0 });
 
   const [pdfText, setPdfText]     = useState("");
   const [pdfName, setPdfName]     = useState("");
@@ -378,11 +378,20 @@ export default function AppWrapper() {
 
   const [session, setSession] = useState<any>(null);
 
-  useEffect(() => { supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); });
-    if (session) { getUsageToday(session.user.id).then(setUsage); }
-    const {data: {subscription}} = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
-    if (session) { getUsageToday(session.user.id).then(setUsage); }
-    return () => subscription.unsubscribe(); }, []);
+  
+  useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    setSession(session);
+    if (session) getUsageToday(session.user.id).then(setUsage);
+  });
+
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    setSession(session);
+    if (session) getUsageToday(session.user.id).then(setUsage);
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
 
 
   const handleInstall = async () => {
@@ -404,14 +413,10 @@ export default function AppWrapper() {
 
   const handleFile = async (file: File) => {
     if (!file || file.type !== "application/pdf") { alert("Please upload a PDF file."); return; }
-    if (usage.pdf >= 3) { alert("You have reached your daily free limit. Upgrade to Starter for unlimited uploads."); return; }
+    if (usage.pdfs >= tier.pdfsPerDay) { alert("You have reached your daily free limit. Upgrade to Starter for unlimited uploads."); return; }
     await incrementUsage(session.user.id, "pdfs");
-    setUsage(prev => ({ ...prev, pdfs: prev.pdf + 1 }));
-    const isUnlimited = tier.pdfsPerDay === undefined || tier.pdfsPerDay === -1;
-    if (!isUnlimited && pdfsUploadedToday >= tier.pdfsPerDay!) {
-      alert(`Daily PDF limit reached. Upgrade your plan to upload more PDFs today.`);
-      return;
-    }
+    setUsage(prev => ({ ...prev, pdfs: prev.pdfs + 1 }));
+  
     setPdfName(file.name);
     setMessages([]);
     setShowHints(true);
@@ -458,7 +463,7 @@ export default function AppWrapper() {
   const send = async (text?: string, isRetry = false) => {
     const q = (text || input).trim();
     if (!q || !pdfText || loading || streaming) return;
-    if (!isRetry && usage.questions >= 30) { setMessages(prev => [...prev, { role: "assistant", text: "⚠️ You have reached your daily free question limit. Upgrade to Starter for more.", ts: Date.now() }]);
+    if (!isRetry && usage.questions >= tier.dailyQuestions) { setMessages(prev => [...prev, { role: "assistant", text: "⚠️ You have reached your daily free question limit. Upgrade to Starter for more.", ts: Date.now() }]);
       return;
     }
     if (!isRetry) { await incrementUsage(session.user.id, "questions");
