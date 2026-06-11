@@ -9,6 +9,7 @@ import Auth from "./components/Auth";
 import PdfDocument from "./services/PdfDocument";
 import { pdf } from "@react-pdf/renderer";
 import React from "react";
+import { getUsageToday, incrementUsage } from "./utils/usageTracking";
 
 // ── Splash Screen ──────────────────────────────────────────
 function SplashScreen({ visible }: { visible: boolean }) {
@@ -127,6 +128,7 @@ function parsePDF(file: File, resolve: (v: any) => void, reject: (e: any) => voi
 // ── AppWrapper ─────────────────────────────────────────────
 export default function AppWrapper() {
   const [page, setPage] = useState<"home" | "terms" | "privacy">("home");
+  const [usage, setUsage] = useState({ pdf: 0, questions: 0, exports: 0 });
 
   const [pdfText, setPdfText]     = useState("");
   const [pdfName, setPdfName]     = useState("");
@@ -158,6 +160,9 @@ export default function AppWrapper() {
   filename?: string
 ) => {
   if (!msgs || msgs.length === 0) return;
+  if (usage.exports >= 2) { alert("You have reached your daily free export limit. Upgrade to Starter for more exports."); return; }
+  await incrementUsage(session.user.id, "exports");
+  setUsage(prev => ({ ...prev, exports: prev.exports + 1 }));
 
   try {
     const mapped = msgs.map(m => ({
@@ -249,6 +254,12 @@ export default function AppWrapper() {
 
   const [session, setSession] = useState<any>(null);
 
+  useEffect(() => { supabase.auth.getSession().then(({ data: { session } }) => { setSession(session); });
+    if (session) { getUsageToday(session.user.id).then(setUsage); }
+    const {data: {subscription}} = supabase.auth.onAuthStateChange((_event, session) => setSession(session));
+    if (session) { getUsageToday(session.user.id).then(setUsage); }
+    return () => subscription.unsubscribe(); }, []);
+
 
   const handleInstall = async () => {
     if (!installPrompt) return;
@@ -269,6 +280,9 @@ export default function AppWrapper() {
 
   const handleFile = async (file: File) => {
     if (!file || file.type !== "application/pdf") { alert("Please upload a PDF file."); return; }
+    if (usage.pdf >= 3) { alert("You have reached your daily free limit. Upgrade to Starter for unlimited uploads."); return; }
+    await incrementUsage(session.user.id, "pdfs");
+    setUsage(prev => ({ ...prev, pdfs: prev.pdf + 1 }));
     const isUnlimited = tier.pdfsPerDay === undefined || tier.pdfsPerDay === -1;
     if (!isUnlimited && pdfsUploadedToday >= tier.pdfsPerDay!) {
       alert(`Daily PDF limit reached. Upgrade your plan to upload more PDFs today.`);
@@ -320,6 +334,12 @@ export default function AppWrapper() {
   const send = async (text?: string, isRetry = false) => {
     const q = (text || input).trim();
     if (!q || !pdfText || loading || streaming) return;
+    if (!isRetry && usage.questions >= 30) { setMessages(prev => [...prev, { role: "assistant", text: "⚠️ You have reached your daily free question limit. Upgrade to Starter for more.", ts: Date.now() }]);
+      return;
+    }
+    if (!isRetry) { await incrementUsage(session.user.id, "questions");
+      setUsage(prev => ({ ...prev, questions: prev.questions + 1 }));
+    }
     if (!isRetry) {
       setInput("");
       setShowHints(false);
@@ -456,7 +476,7 @@ export default function AppWrapper() {
   if (page === "privacy") return <Privacy onBack={() => setPage("home")} />;
   if (page === "terms")   return <Terms   onBack={() => setPage("home")} />;
 
-  // if (!session) return <Auth />;
+  if (!session) return <Auth />;
   return (
     <>
       <SplashScreen visible={splash} />
