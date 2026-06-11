@@ -409,7 +409,7 @@ export default function AppWrapper() {
   };
 
   const tier = tierConfig.free;
-  const pdfsUploadedToday = 0;
+  const pdfsUploadedToday = usage.pdfs;
 
   const handleFile = async (file: File) => {
     if (!file || file.type !== "application/pdf") { alert("Please upload a PDF file."); return; }
