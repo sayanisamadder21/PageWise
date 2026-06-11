@@ -8,6 +8,7 @@ import { supabase } from "./supabase";
 import Auth from "./components/Auth";
 import PdfDocument from "./services/PdfDocument";
 import { pdf } from "@react-pdf/renderer";
+import React from "react";
 
 // ── Splash Screen ──────────────────────────────────────────
 function SplashScreen({ visible }: { visible: boolean }) {
@@ -163,9 +164,10 @@ export default function AppWrapper() {
     content: m.text,  // ← only change
   }));
 
-  const blob = await pdf(
-    <PdfDocument messages={mapped} />
-  ).toBlob();
+  const element = React.createElement(PdfDocument, { messages: mapped });
+  const instance = pdf();
+  instance.updateContainer(element);
+  const blob = await instance.toBlob();
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
