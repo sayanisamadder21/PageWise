@@ -53,11 +53,11 @@ export default function UpgradeModal({ visible, onClose, reason }: UpgradeModalP
       color: C.orange,
       badge: "POPULAR",
       features: [
-        "Unlimited PDFs",
+        "25 PDFs/day",
         "100 questions/day",
         "10 exports/day",
         "All 8 modes",
-        "5 chat history (7 days)",
+        "10 chat history (14 days)",
       ],
       monthlyINR: 199,
       yearlyINR: 1990,

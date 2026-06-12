@@ -114,13 +114,13 @@ export const tierConfig: Record<Tier, TierConfig> = {
     authRequired: true,
 
     dailyQuestions: 100,
-    pdfsPerDay: -1,
+    pdfsPerDay: 25,
     maxContextChars: 50000,
     maxExportsPerDay: 10,
 
     chatHistory: true,
-    chatHistoryLimit: 5,
-    chatHistoryRetentionDays: 7,
+    chatHistoryLimit: 10,
+    chatHistoryRetentionDays: 14,
     chatSearch: false,
     namedChats: false,
 
