@@ -8,6 +8,7 @@ import { supabase } from "./supabase";
 import Auth from "./components/Auth";
 import React from "react";
 import { getUsageToday, incrementUsage } from "./utils/usageTracking";
+import UpgradeModal from "./components/UpgradeModal";
 
 // ── Splash Screen ──────────────────────────────────────────
 function SplashScreen({ visible }: { visible: boolean }) {
@@ -152,6 +153,7 @@ export default function AppWrapper() {
   const abortRef    = useRef<AbortController | null>(null);
 
   const hasPDF = !!pdfText;
+  const [upgradeModal, setUpgradeModal] = useState<{ visible: boolean; reason?: "pdfs" | "questions" | "exports" }>({ visible: false });
 
   const exportPdfFromMessages = async (
   msgs: { role: string; text: string; ts?: number }[],
@@ -160,7 +162,7 @@ export default function AppWrapper() {
   if (!msgs || msgs.length === 0) return;
 
   if (usage.exports >= tier.maxExportsPerDay) {
-    alert("Daily export limit reached. Upgrade to Starter for more exports.");
+    setUpgradeModal({ visible: true, reason: "exports" });
     return;
   }
 
@@ -413,7 +415,7 @@ export default function AppWrapper() {
 
   const handleFile = async (file: File) => {
     if (!file || file.type !== "application/pdf") { alert("Please upload a PDF file."); return; }
-    if (usage.pdfs >= tier.pdfsPerDay) { alert("You have reached your daily free limit. Upgrade to Starter for unlimited uploads."); return; }
+    if (usage.pdfs >= tier.pdfsPerDay) { setUpgradeModal({ visible: true, reason: "pdfs" }); return; }
     await incrementUsage(session.user.id, "pdfs");
     setUsage(prev => ({ ...prev, pdfs: prev.pdfs + 1 }));
   
@@ -463,9 +465,7 @@ export default function AppWrapper() {
   const send = async (text?: string, isRetry = false) => {
     const q = (text || input).trim();
     if (!q || !pdfText || loading || streaming) return;
-    if (!isRetry && usage.questions >= tier.dailyQuestions) { setMessages(prev => [...prev, { role: "assistant", text: "⚠️ You have reached your daily free question limit. Upgrade to Starter for more.", ts: Date.now() }]);
-      return;
-    }
+    if (!isRetry && usage.questions >= tier.dailyQuestions) { setUpgradeModal({ visible: true, reason: "questions" }); return; }
     if (!isRetry) { await incrementUsage(session.user.id, "questions");
       setUsage(prev => ({ ...prev, questions: prev.questions + 1 }));
     }
@@ -608,6 +608,7 @@ export default function AppWrapper() {
   if (!session) return <Auth />;
   return (
     <>
+      <UpgradeModal visible={upgradeModal.visible} reason={upgradeModal.reason} onClose={() => setUpgradeModal({ visible: false })} />
       <SplashScreen visible={splash} />
       {hasPDF ? (
         <ChatLayout
