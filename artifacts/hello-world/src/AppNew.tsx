@@ -176,9 +176,15 @@ export default function AppWrapper() {
         <meta charset="UTF-8">
         <title>${filename || 'pagewise-export'}</title>
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Noto+Sans&family=Noto+Sans+Bengali&family=Noto+Sans+Devanagari&family=Noto+Sans+Arabic&family=Noto+Sans+JP&family=Noto+Sans+KR&family=Noto+Sans+SC&family=Noto+Sans+Tamil&family=Noto+Sans+Telugu&display=swap');
-
-          * { box-sizing: border-box; margin: 0; padding: 0; }
+          { box-sizing: border-box; margin: 0; padding: 0; }
+          body {
+           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+           padding: 48px 56px;
+           color: #1A150F;
+           background: #fff;
+           font-size: 13px;
+           line-height: 1.8;
+          }
 
           body {
             font-family: 'Noto Sans', sans-serif;
