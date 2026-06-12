@@ -70,6 +70,7 @@ export default function UpgradeModal({ visible, onClose, reason }: UpgradeModalP
       name: "Pro",
       current: false,
       color: C.gold,
+      badge: "Elite",
       features: [
         "Unlimited everything",
         "All 8 modes",
