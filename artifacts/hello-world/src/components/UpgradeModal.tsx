@@ -38,7 +38,7 @@ export default function UpgradeModal({ visible, onClose, reason }: UpgradeModalP
         "30 questions/day",
         "2 exports/day",
         "6 modes",
-        "No chat history",
+        "Chat clears on new PDF upload",
       ],
       monthlyINR: 0,
       yearlyINR: 0,
