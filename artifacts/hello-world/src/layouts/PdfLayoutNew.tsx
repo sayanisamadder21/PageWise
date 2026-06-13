@@ -1,5 +1,5 @@
 import { C, PERSONAS, ICON_PATHS } from "../AppNew";
-import { tierConfig } from "../config/tierConfig";
+import { TierConfig } from "../config/tierConfig";
 
 function Icon({ name, size = 14, color = "currentColor" }: { name: string; size?: number; color?: string }) {
   return (
@@ -35,7 +35,7 @@ interface PdfLayoutProps {
   fileRef: React.RefObject<HTMLInputElement | null>;
   installPrompt: any;
   handleInstall: () => void;
-  tier: tierConfig;
+  tier: TierConfig;
   pdfsUplodedToday: number;
   onLogout: () => void;
   onNavigate?: (page: "terms" | "privacy") => void;
@@ -57,6 +57,10 @@ export default function PdfLayout({
     onClearSession?.();
     setTimeout(() => fileRef.current?.click(), 50);
   };
+
+  const pdfsRemaining = tier.pdfsPerDay - pdfsUplodedToday;
+  const isNearLimit = pdfsRemaining <= 1;
+  const isAtLimit = pdfsRemaining <= 0;
 
   return (
     <div style={{
@@ -140,6 +144,42 @@ export default function PdfLayout({
             Drop your PDF and start a conversation.<br />
             Switch AI modes anytime — no scrolling needed.
           </p>
+
+          {/* ── PDF Usage Indicator ── */}
+          {tier.pdfsPerDay !== -1 && (
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              background: isAtLimit ? "#FFF0F0" : isNearLimit ? "#FFF8F0" : C.cardBg,
+              border: `1px solid ${isAtLimit ? "#FFCCCC" : isNearLimit ? C.orange : C.border}`,
+              borderRadius: 10,
+              padding: "8px 14px",
+              marginBottom: 12,
+            }}>
+              <span style={{
+                fontSize: 12, fontWeight: 600,
+                color: isAtLimit ? "#CC0000" : isNearLimit ? C.orange : C.textMid,
+                fontFamily: "'Montserrat', sans-serif",
+              }}>
+                {isAtLimit
+                  ? "⚠️ Daily PDF limit reached"
+                  : `📄 ${pdfsUplodedToday} / ${tier.pdfsPerDay} PDFs used today`}
+              </span>
+              <div style={{
+                display: "flex", gap: 3,
+              }}>
+                {Array.from({ length: tier.pdfsPerDay }).map((_, i) => (
+                  <div key={i} style={{
+                    width: 8, height: 8, borderRadius: 2,
+                    background: i < pdfsUplodedToday
+                      ? (isAtLimit ? "#CC0000" : C.orange)
+                      : C.border,
+                  }} />
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* ── Session resume UI OR normal drop zone ── */}
           {hasSavedSession ? (
@@ -301,9 +341,8 @@ export default function PdfLayout({
               gap: 8,
               opacity: 0.5,
               position: "relative",
-              gridColumn: "1 / -1",  // full width to stand out
+              gridColumn: "1 / -1",
             }}>
-              {/* Magic wand SVG */}
               <div style={{ marginTop: 1, flexShrink: 0 }}>
                 <svg width={14} height={14} viewBox="0 0 24 24" fill="none"
                   stroke={C.muted} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
@@ -318,7 +357,6 @@ export default function PdfLayout({
                   Build your own AI persona — Pro only
                 </div>
               </div>
-              {/* Coming soon badge */}
               <div style={{
                 position: "absolute",
                 top: 8,
