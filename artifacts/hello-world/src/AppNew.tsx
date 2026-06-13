@@ -9,6 +9,8 @@ import Auth from "./components/Auth";
 import React from "react";
 import { getUsageToday, incrementUsage } from "./utils/usageTracking";
 import UpgradeModal from "./components/UpgradeModal";
+import StarterLayout from "./layouts/StarterLayout";
+import { Tier, TierConfig } from "./config/tierConfig";
 
 // ── Splash Screen ──────────────────────────────────────────
 function SplashScreen({ visible }: { visible: boolean }) {
@@ -161,7 +163,7 @@ export default function AppWrapper() {
 ) => {
   if (!msgs || msgs.length === 0) return;
 
-  if (usage.exports >= tier.maxExportsPerDay) {
+  if (usage.exports >= activeTier.maxExportsPerDay) {
     setUpgradeModal({ visible: true, reason: "exports" });
     return;
   }
@@ -416,12 +418,13 @@ export default function AppWrapper() {
     reset();
   };
 
-  const tier = tierConfig.free;
+  const currentTier: Tier = "starter"
+  const activeTier: TierConfig = tierConfig[currentTier];
   const pdfsUploadedToday = usage.pdfs;
 
   const handleFile = async (file: File) => {
     if (!file || file.type !== "application/pdf") { alert("Please upload a PDF file."); return; }
-    if (usage.pdfs >= tier.pdfsPerDay) { setUpgradeModal({ visible: true, reason: "pdfs" }); return; }
+    if (usage.pdfs >= activeTier.pdfsPerDay) { setUpgradeModal({ visible: true, reason: "pdfs" }); return; }
     await incrementUsage(session.user.id, "pdfs");
     setUsage(prev => ({ ...prev, pdfs: prev.pdfs + 1 }));
   
@@ -471,7 +474,7 @@ export default function AppWrapper() {
   const send = async (text?: string, isRetry = false) => {
     const q = (text || input).trim();
     if (!q || !pdfText || loading || streaming) return;
-    if (!isRetry && usage.questions >= tier.dailyQuestions) { setUpgradeModal({ visible: true, reason: "questions" }); return; }
+    if (!isRetry && usage.questions >= activeTier.dailyQuestions) { setUpgradeModal({ visible: true, reason: "questions" }); return; }
     if (!isRetry) { await incrementUsage(session.user.id, "questions");
       setUsage(prev => ({ ...prev, questions: prev.questions + 1 }));
     }
@@ -650,6 +653,16 @@ export default function AppWrapper() {
           onExportPdf={exportPdfFromMessages}
         />
       ) : (
+        
+          currentTier === "starter" ? (
+        <StarterLayout
+          tier={activeTier}
+          pdfsUploadedToday={pdfsUploadedToday}
+          onLogout={handleLogout}
+          onNavigate={setPage}
+          onUpgrade={() => setUpgradeModal({ visible: true })}
+        />
+      ) : (
         <PdfLayout
           uploading={uploading}
           dragOver={dragOver}
@@ -658,7 +671,7 @@ export default function AppWrapper() {
           fileRef={fileRef}
           installPrompt={installPrompt}
           handleInstall={handleInstall}
-          tier={tier}
+          tier={activeTier}
           pdfsUplodedToday={pdfsUploadedToday}
           onLogout={handleLogout}
           onNavigate={setPage}
@@ -667,7 +680,7 @@ export default function AppWrapper() {
           onResume={handleResume}
           onClearSession={handleClearSession}
         />
-      )}
+      ))}
     </>
   );
 }
