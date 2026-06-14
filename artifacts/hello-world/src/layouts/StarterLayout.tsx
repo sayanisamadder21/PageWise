@@ -206,7 +206,13 @@ export default function StarterLayout({
   const [activeChat, setActiveChat]   = useState<number | null>(1);
   const fileRef   = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const isMobile  = window.innerWidth < 768;
+  const [isMobile, setIsMobile] = useState( () => window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const pdfsRemaining      = tier.pdfsPerDay      === -1 ? null : tier.pdfsPerDay      - pdfsUploadedToday;
   const questionsRemaining = tier.dailyQuestions   === -1 ? null : tier.dailyQuestions   - questionsUsedToday;
@@ -520,7 +526,7 @@ export default function StarterLayout({
           }}>
             <div style={{ maxWidth: 400, width: "100%", textAlign: "center" }}>
               <img src="/header-logo.png" alt="PageWise"
-                style={{ height: 44, objectFit: "contain", marginBottom: 20, opacity: 0.85 }} />
+                style={{ height: 44, objectFit: "contain", marginBottom: 20, opacity: 0.85, display: "block", margin: "0 auto 20px" }} />
               <h2 style={{
                 fontFamily: "'Playfair Display', Georgia, serif",
                 fontSize: 24, color: C.dark, fontWeight: 700, marginBottom: 8, marginTop: 0,

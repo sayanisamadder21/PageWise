@@ -619,88 +619,86 @@ export default function AppWrapper() {
     <>
       <UpgradeModal visible={upgradeModal.visible} reason={upgradeModal.reason} onClose={() => setUpgradeModal({ visible: false })} />
       <SplashScreen visible={splash} />
-      {hasPDF ? (
-        <ChatLayout
-          pdfMeta={pdfMeta}
-          messages={messages}
-          loading={loading}
-          streaming={streaming}
-          persona={persona}
-          setPersona={setPersona}
-          input={input}
-          setInput={setInput}
-          send={send}
-          copy={copy}
-          copied={copied}
-          showHints={showHints}
-          smartQs={smartQs}
-          loadingQs={loadingQs}
-          generateSmartQs={generateSmartQs}
-          fileRef={fileRef}
-          bottomRef={bottomRef}
-          textareaRef={textareaRef}
-          handleFile={handleFile}
-          onReset={reset}
-          currentP={currentP}
-          fmt={fmt}
-          language={language}
-          setLanguage={setLanguage}
-          installPrompt={installPrompt}
-          handleInstall={handleInstall}
-          onLogout={handleLogout}
-          pdfText={pdfText}
-          pdfName={pdfName}
-          onExportPdf={exportPdfFromMessages}
-        />
-      ) : (
-        
-          currentTier === "starter" ? (
-        <StarterLayout
-          tier={activeTier}
-          pdfsUploadedToday={usage.pdfs}
-          questionsUsedToday={usage.questions}
-          exportsUsedToday={usage.exports}
-          currentTier={currentTier}
-          pdfName={pdfName}
-          pdfText={pdfText}
-          pdfMeta={pdfMeta}
-          messages={messages}
-          loading={loading}
-          streaming={streaming}
-          persona={persona}
-          setPersona={setPersona}
-          input={input}
-          setInput={setInput}
-          send={send}
-          language={language}
-          setLanguage={setLanguage}
-          handleFile={handleFile}
-          onLogout={handleLogout}
-          onNavigate={setPage}
-          onUpgrade={() => setUpgradeModal({ visible: true })}
-          onReset={reset}
-          fmt={fmt}
-          onExportPdf={exportPdfFromMessages}
-        />
-      ) : (
-        <PdfLayout
-          uploading={uploading}
-          dragOver={dragOver}
-          setDragOver={setDragOver}
-          handleFile={handleFile}
-          fileRef={fileRef}
-          installPrompt={installPrompt}
-          handleInstall={handleInstall}
-          tier={activeTier}
-          pdfsUplodedToday={pdfsUploadedToday}
-          onLogout={handleLogout}
-          onNavigate={setPage}
-          hasSavedSession={!!savedSession}
-          savedPdfName={savedSession?.name || ""}
-          onResume={handleResume}
-          onClearSession={handleClearSession}
-        />
-      ))}
+      { currentTier === "starter" ? (
+  <StarterLayout
+    tier={activeTier}
+    pdfsUploadedToday={usage.pdfs}
+    questionsUsedToday={usage.questions}
+    exportsUsedToday={usage.exports}
+    currentTier={currentTier}
+    pdfName={pdfName}
+    pdfText={pdfText}
+    pdfMeta={pdfMeta}
+    messages={messages}
+    loading={loading}
+    streaming={streaming}
+    persona={persona}
+    setPersona={setPersona}
+    input={input}
+    setInput={setInput}
+    send={send}
+    language={language}
+    setLanguage={setLanguage}
+    handleFile={handleFile}
+    onLogout={handleLogout}
+    onNavigate={setPage}
+    onUpgrade={() => setUpgradeModal({ visible: true })}
+    onReset={reset}
+    fmt={fmt}
+    onExportPdf={exportPdfFromMessages}
+  />
+) : hasPDF ? (
+  <ChatLayout
+    pdfMeta={pdfMeta}
+    messages={messages}
+    loading={loading}
+    streaming={streaming}
+    persona={persona}
+    setPersona={setPersona}
+    input={input}
+    setInput={setInput}
+    send={send}
+    copy={copy}
+    copied={copied}
+    showHints={showHints}
+    smartQs={smartQs}
+    loadingQs={loadingQs}
+    generateSmartQs={generateSmartQs}
+    fileRef={fileRef}
+    bottomRef={bottomRef}
+    textareaRef={textareaRef}
+    handleFile={handleFile}
+    onReset={reset}
+    currentP={currentP}
+    fmt={fmt}
+    language={language}
+    setLanguage={setLanguage}
+    installPrompt={installPrompt}
+    handleInstall={handleInstall}
+    onLogout={handleLogout}
+    pdfText={pdfText}
+    pdfName={pdfName}
+    onExportPdf={exportPdfFromMessages}
+  />
+) : (
+  <PdfLayout
+    uploading={uploading}
+    dragOver={dragOver}
+    setDragOver={setDragOver}
+    handleFile={handleFile}
+    fileRef={fileRef}
+    installPrompt={installPrompt}
+    handleInstall={handleInstall}
+    tier={activeTier}
+    pdfsUplodedToday={pdfsUploadedToday}
+    onLogout={handleLogout}
+    onNavigate={setPage}
+    hasSavedSession={!!savedSession}
+    savedPdfName={savedSession?.name || ""}
+    onResume={handleResume}
+    onClearSession={handleClearSession}
+  />
+)}
     </>
   );
 }
