@@ -213,6 +213,7 @@ export default function StarterLayout({
   const [activeNav, setActiveNav]     = useState("documents");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeChat, setActiveChat]   = useState<number | null>(1);
+  const [showChats, setShowChats]     = useState(true);
   const fileRef   = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -254,7 +255,7 @@ export default function StarterLayout({
     setActiveNav(id);
     if (id === "settings") setView("settings");
     else if (view === "settings") setView(pdfText ? "chat" : "home");
-    if (isMobile) setSidebarOpen(false); // only close on mobile
+    // sidebar stays open — user closes it manually or by selecting a chat
   };
 
   const handleFileWithLimit = (file: File) => {
@@ -335,7 +336,7 @@ export default function StarterLayout({
       )}
 
       {/* ════════ SIDEBAR ════════ */}
-      <div style={{
+      <div onClick={e => e.stopPropagation()} style={{
         width: 240, background: S.sidebar,
         display: "flex", flexDirection: "column", flexShrink: 0,
         borderRight: `1px solid ${S.sidebarBorder}`, zIndex: 50,
@@ -382,7 +383,7 @@ export default function StarterLayout({
         <nav style={{ padding: "8px 10px", flex: 1, overflowY: "auto" }}>
           {NAV_ITEMS.map(item => (
             <div key={item.id} className="nav-item"
-              onClick={() => handleNavClick(item.id)}
+              onClick={() => { if (item.id === "chats") { setShowChats(prev => !prev); setActiveNav("chats"); } else { handleNavClick(item.id); } }}
               style={{
                 display: "flex", alignItems: "center", gap: 10,
                 padding: "9px 12px", marginBottom: 2,
@@ -405,7 +406,7 @@ export default function StarterLayout({
           ))}
 
           {/* Recent Chats */}
-          {activeNav === "chats" && (
+          {showChats && (
             <div style={{ marginTop: 6 }}>
               {MOCK_CHATS.map(chat => (
                 <div key={chat.id} className="chat-item"
@@ -486,37 +487,7 @@ export default function StarterLayout({
             {view === "settings" && <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>Settings</div>}
           </div>
 
-          {/* Desktop controls */}
-          {!isMobile && view === "chat" && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <select value={language} onChange={e => setLanguage(e.target.value)} className="pill-select"
-                style={{
-                  background: S.pillBg, border: `1px solid ${S.pillBorder}`,
-                  borderRadius: 20, padding: "5px 12px", fontSize: 11,
-                  fontWeight: 600, color: C.dark, fontFamily: "'Montserrat', sans-serif",
-                }}>
-                {LANGUAGES.map(l => <option key={l}>{l}</option>)}
-              </select>
-              <select value={persona} onChange={e => setPersona(e.target.value)} className="pill-select"
-                style={{
-                  background: S.pillBg, border: `1px solid ${S.pillBorder}`,
-                  borderRadius: 20, padding: "5px 12px", fontSize: 11,
-                  fontWeight: 600, color: C.dark, fontFamily: "'Montserrat', sans-serif",
-                }}>
-                {PERSONAS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-              </select>
-              <button
-                disabled={atExportLimit}
-                onClick={() => onExportPdf?.(messages, pdfName)}
-                style={{
-                  background: "transparent", border: `1px solid ${S.pillBorder}`,
-                  borderRadius: 20, padding: "5px 14px", fontSize: 11,
-                  fontWeight: 600, color: atExportLimit ? C.muted : C.dark,
-                  cursor: atExportLimit ? "not-allowed" : "pointer",
-                  fontFamily: "'Montserrat', sans-serif",
-                }}>📤 Export</button>
-            </div>
-          )}
+          {/* Header is clean — controls moved to footer */}
         </div>
 
         {/* ── HOME view ── */}
@@ -697,13 +668,15 @@ export default function StarterLayout({
               <div ref={bottomRef} />
             </div>
 
-            {/* ── Mobile mode pill toolbar — fixed above input ── */}
-            {isMobile && (
+            {/* ── Input Bar — fixed at bottom ── */}
+            <div style={{
+              background: S.header, borderTop: `1px solid ${S.headerBorder}`,
+              padding: "10px 16px 12px", flexShrink: 0, zIndex: 10,
+            }}>
+              {/* Persona + Language + Export row above textarea */}
               <div style={{
-                background: S.header, borderTop: `1px solid ${S.headerBorder}`,
-                padding: "8px 12px",
-                display: "flex", gap: 6, alignItems: "center",
-                overflowX: "auto", flexShrink: 0,
+                maxWidth: 720, margin: "0 auto 8px",
+                display: "flex", gap: 6, alignItems: "center", overflowX: "auto",
               }}>
                 {PERSONAS.map(p => (
                   <button key={p.id} className="mode-pill"
@@ -712,7 +685,7 @@ export default function StarterLayout({
                     style={{
                       background: persona === p.id ? C.dark : S.pillBg,
                       border: `1px solid ${persona === p.id ? C.orange : S.pillBorder}`,
-                      borderRadius: 20, padding: "5px 12px", fontSize: 11,
+                      borderRadius: 20, padding: "4px 11px", fontSize: 11,
                       fontWeight: 700,
                       color: persona === p.id ? C.orange : C.dark,
                       cursor: isBusy ? "not-allowed" : "pointer",
@@ -724,7 +697,7 @@ export default function StarterLayout({
                 <select value={language} onChange={e => setLanguage(e.target.value)} className="pill-select"
                   style={{
                     background: S.pillBg, border: `1px solid ${S.pillBorder}`,
-                    borderRadius: 20, padding: "5px 12px", fontSize: 11,
+                    borderRadius: 20, padding: "4px 10px", fontSize: 11,
                     fontWeight: 600, color: C.dark, fontFamily: "'Montserrat', sans-serif", flexShrink: 0,
                   }}>
                   {LANGUAGES.map(l => <option key={l}>{l}</option>)}
@@ -734,19 +707,14 @@ export default function StarterLayout({
                   onClick={() => onExportPdf?.(messages, pdfName)}
                   style={{
                     background: "transparent", border: `1px solid ${S.pillBorder}`,
-                    borderRadius: 20, padding: "5px 14px", fontSize: 11,
+                    borderRadius: 20, padding: "4px 12px", fontSize: 11,
                     fontWeight: 600, color: atExportLimit ? C.muted : C.dark,
                     cursor: atExportLimit ? "not-allowed" : "pointer",
                     fontFamily: "'Montserrat', sans-serif", flexShrink: 0,
                   }}>📤 Export</button>
               </div>
-            )}
 
-            {/* ── Input Bar — fixed at bottom ── */}
-            <div style={{
-              background: S.header, borderTop: `1px solid ${S.headerBorder}`,
-              padding: "10px 16px 12px", flexShrink: 0, zIndex: 10,
-            }}>
+              {/* Input row */}
               <div style={{
                 maxWidth: 720, margin: "0 auto",
                 display: "flex", gap: 8, alignItems: "flex-end",
