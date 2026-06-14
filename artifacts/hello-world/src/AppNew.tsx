@@ -657,10 +657,30 @@ export default function AppWrapper() {
           currentTier === "starter" ? (
         <StarterLayout
           tier={activeTier}
-          pdfsUploadedToday={pdfsUploadedToday}
+          pdfsUploadedToday={usage.pdfs}
+          questionsUsedToday={usage.questions}
+          exportsUsedToday={usage.exports}
+          currentTier={currentTier}
+          pdfName={pdfName}
+          pdfText={pdfText}
+          pdfMeta={pdfMeta}
+          messages={messages}
+          loading={loading}
+          streaming={streaming}
+          persona={persona}
+          setPersona={setPersona}
+          input={input}
+          setInput={setInput}
+          send={send}
+          language={language}
+          setLanguage={setLanguage}
+          handleFile={handleFile}
           onLogout={handleLogout}
           onNavigate={setPage}
           onUpgrade={() => setUpgradeModal({ visible: true })}
+          onReset={reset}
+          fmt={fmt}
+          onExportPdf={exportPdfFromMessages}
         />
       ) : (
         <PdfLayout

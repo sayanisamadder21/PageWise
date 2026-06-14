@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { C, PERSONAS, LANGUAGES } from "../AppNew";
 import { TierConfig } from "../config/tierConfig";
 
@@ -18,71 +18,213 @@ const S = {
   userBubble: "#FF8C00",
   userBubbleText: "#FFFFFF",
   aiBubble: "#FFFFFF",
-  aiBubbleText: "#1A1610",
   aiBubbleBorder: "#EDE8DF",
   shadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)",
+  pillBg: "#F5F0E8",
+  pillBorder: "#E5DFD6",
 };
 
+interface Message {
+  role: string;
+  text: string;
+  ts: number;
+  isSystem?: boolean;
+  isLimit?: boolean;
+}
+
 interface StarterLayoutProps {
+  // Tier & usage
   tier: TierConfig;
+  currentTier: "free" | "starter" | "pro";
   pdfsUploadedToday: number;
+  questionsUsedToday: number;
+  exportsUsedToday: number;
+  // PDF & chat state
+  pdfName: string;
+  pdfText: string;
+  pdfMeta: { pages: number; words: string } | null;
+  messages: Message[];
+  loading: boolean;
+  streaming: boolean;
+  input: string;
+  setInput: (v: string) => void;
+  persona: string;
+  setPersona: (v: string) => void;
+  language: string;
+  setLanguage: (v: string) => void;
+  // Handlers
+  handleFile: (file: File) => void;
+  send: (text?: string) => void;
   onLogout: () => void;
-  onNavigate?: (page: "terms" | "privacy") => void;
   onUpgrade?: () => void;
+  onNavigate?: (page: "terms" | "privacy") => void;
+  onReset: () => void;
+  fmt: (t: string) => string;
+  // Export
+  onExportPdf?: (msgs: Message[], filename?: string) => void;
 }
 
 const NAV_ITEMS = [
-  { id: "documents", icon: "📄", label: "Documents" },
+  { id: "documents", icon: "📄", label: "Documents"    },
   { id: "chats",     icon: "💬", label: "Recent Chats" },
-  { id: "exports",   icon: "📤", label: "Exports" },
-  { id: "settings",  icon: "⚙️", label: "Settings" },
+  { id: "exports",   icon: "📤", label: "Exports"      },
+  { id: "settings",  icon: "⚙️", label: "Settings"     },
 ];
 
 const MOCK_CHATS = [
-  { id: 1,  title: "Cell Biology Summary",     time: "2h ago"     },
-  { id: 2,  title: "Important Equations",       time: "Yesterday"  },
-  { id: 3,  title: "Blood Report Explanation",  time: "2 days ago" },
-  { id: 4,  title: "Case Law Notes",            time: "3 days ago" },
-  { id: 5,  title: "Physics Revision",          time: "4 days ago" },
-  { id: 6,  title: "Contract Analysis",         time: "5 days ago" },
-  { id: 7,  title: "Research Paper Summary",    time: "6 days ago" },
-  { id: 8,  title: "Medical Report Review",     time: "7 days ago" },
-  { id: 9,  title: "Study Notes — Chapter 4",   time: "8 days ago" },
-  { id: 10, title: "Exam Prep Questions",       time: "9 days ago" },
+  { id: 1,  title: "Cell Biology Summary",    time: "2h ago"     },
+  { id: 2,  title: "Important Equations",      time: "Yesterday"  },
+  { id: 3,  title: "Blood Report Explanation", time: "2 days ago" },
+  { id: 4,  title: "Case Law Notes",           time: "3 days ago" },
+  { id: 5,  title: "Physics Revision",         time: "4 days ago" },
+  { id: 6,  title: "Contract Analysis",        time: "5 days ago" },
+  { id: 7,  title: "Research Paper Summary",   time: "6 days ago" },
+  { id: 8,  title: "Medical Report Review",    time: "7 days ago" },
+  { id: 9,  title: "Study Notes — Chapter 4",  time: "8 days ago" },
+  { id: 10, title: "Exam Prep Questions",      time: "9 days ago" },
 ];
 
-const MOCK_MESSAGES = [
-  { role: "user", text: "Summarize chapter 3 of the biology notes." },
-  {
-    role: "ai",
-    sections: [
-      { heading: "Summary",          body: "Chapter 3 covers cell division, focusing on mitosis and meiosis. The key difference is that mitosis produces identical daughter cells, while meiosis produces genetically unique gametes." },
-      { heading: "Key Concepts",     body: "Mitosis (4 phases: Prophase, Metaphase, Anaphase, Telophase) · Meiosis I & II · Chromosome number halving · Crossing over in Prophase I" },
-      { heading: "Important Points", body: "Errors in meiosis can lead to aneuploidy (e.g., Down syndrome). Mitosis is used for growth and repair; meiosis for sexual reproduction only." },
-    ],
-  },
-];
+type View = "home" | "chat" | "settings";
 
-type View = "home" | "chat";
+// ── Dots loader ──
+function Dots() {
+  return (
+    <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+      {[0, 1, 2].map(i => (
+        <span key={i} style={{
+          width: 6, height: 6, borderRadius: "50%", background: C.gold,
+          display: "inline-block",
+          animation: `bounce 1.2s ${i * 0.2}s infinite ease-in-out`,
+        }} />
+      ))}
+    </span>
+  );
+}
+
+// ── Settings view ──
+function SettingsView({ onNavigate, onLogout, onUpgrade, tier }: {
+  onNavigate?: (page: "terms" | "privacy") => void;
+  onLogout: () => void;
+  onUpgrade?: () => void;
+  tier: TierConfig;
+}) {
+  const sections = [
+    {
+      title: "Account",
+      items: [
+        { label: "Plan", value: tier.name, type: "info" },
+        { label: "Storage", value: "Supabase", type: "info" },
+        { label: "Chat History", value: `${tier.chatHistoryLimit} chats · ${tier.chatHistoryRetentionDays} days`, type: "info" },
+      ],
+    },
+    {
+      title: "Billing",
+      items: [
+        { label: "Current Plan", value: `${tier.name} — ₹${tier.monthlyPriceINR}/mo`, type: "info" },
+        { label: "Status", value: "Payments launching soon", type: "info" },
+        { label: "Upgrade to Pro", value: "", type: "action", action: onUpgrade, color: C.orange },
+      ],
+    },
+    {
+      title: "Legal",
+      items: [
+        { label: "Terms & Conditions", value: "", type: "action", action: () => onNavigate?.("terms") },
+        { label: "Privacy Policy",     value: "", type: "action", action: () => onNavigate?.("privacy") },
+      ],
+    },
+    {
+      title: "Account Actions",
+      items: [
+        { label: "Log out",       value: "", type: "action", action: onLogout,  color: C.textMid },
+        { label: "Delete Account",value: "", type: "action", action: () => {},  color: "#CC0000"  },
+      ],
+    },
+  ];
+
+  return (
+    <div style={{ flex: 1, overflowY: "auto", padding: "24px 20px", maxWidth: 520, width: "100%", margin: "0 auto" }}>
+      <h2 style={{
+        fontSize: 20, fontWeight: 700, color: C.dark,
+        fontFamily: "'Playfair Display', Georgia, serif",
+        marginBottom: 24, marginTop: 0,
+      }}>Settings</h2>
+
+      {sections.map(section => (
+        <div key={section.title} style={{ marginBottom: 24 }}>
+          <div style={{
+            fontSize: 10, fontWeight: 700, color: C.muted,
+            letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 8,
+          }}>{section.title}</div>
+          <div style={{
+            background: "#fff", borderRadius: 14,
+            border: `1px solid ${S.inputBorder}`,
+            overflow: "hidden", boxShadow: S.shadow,
+          }}>
+            {section.items.map((item, i) => (
+              <div key={item.label}
+                onClick={item.type === "action" ? (item.action as any) : undefined}
+                style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "14px 16px",
+                  borderBottom: i < section.items.length - 1 ? `1px solid ${S.inputBorder}` : "none",
+                  cursor: item.type === "action" ? "pointer" : "default",
+                }}
+                onMouseEnter={e => { if (item.type === "action") (e.currentTarget as HTMLElement).style.background = S.pillBg; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+              >
+                <span style={{
+                  fontSize: 13, fontWeight: 600,
+                  color: (item as any).color || (item.type === "action" ? C.orange : C.dark),
+                  fontFamily: "'Montserrat', sans-serif",
+                }}>{item.label}</span>
+                {item.value
+                  ? <span style={{ fontSize: 12, color: C.textMid, fontWeight: 500 }}>{item.value}</span>
+                  : item.type === "action" ? <span style={{ fontSize: 14, color: C.muted }}>›</span>
+                  : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      <div style={{ textAlign: "center", fontSize: 11, color: C.muted, marginTop: 8 }}>
+        PageWise by Saevora · v1.0
+      </div>
+    </div>
+  );
+}
 
 export default function StarterLayout({
-  tier, pdfsUploadedToday, onLogout, onNavigate, onUpgrade,
+  tier, currentTier, pdfsUploadedToday, questionsUsedToday, exportsUsedToday,
+  pdfName, pdfText, pdfMeta, messages, loading, streaming,
+  input, setInput, persona, setPersona, language, setLanguage,
+  handleFile, send, onLogout, onUpgrade, onNavigate, onReset, fmt,
+  onExportPdf,
 }: StarterLayoutProps) {
-  const [view, setView]                   = useState<View>("chat"); // "home" = landing, "chat" = active chat
-  const [activeNav, setActiveNav]         = useState("documents");
-  const [sidebarOpen, setSidebarOpen]     = useState(false);
-  const [inputValue, setInputValue]       = useState("");
-  const [selectedPersona, setSelectedPersona] = useState(PERSONAS[0].id);
-  const [selectedLang, setSelectedLang]   = useState("English");
-  const [activeChat, setActiveChat]       = useState<number | null>(1);
-  const isMobile = window.innerWidth < 768;
+  const [view, setView]               = useState<View>(pdfText ? "chat" : "home");
+  const [activeNav, setActiveNav]     = useState("documents");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeChat, setActiveChat]   = useState<number | null>(1);
+  const fileRef   = useRef<HTMLInputElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const isMobile  = window.innerWidth < 768;
 
-  const pdfsRemaining = tier.pdfsPerDay === -1 ? null : tier.pdfsPerDay - pdfsUploadedToday;
+  const pdfsRemaining      = tier.pdfsPerDay      === -1 ? null : tier.pdfsPerDay      - pdfsUploadedToday;
+  const questionsRemaining = tier.dailyQuestions   === -1 ? null : tier.dailyQuestions   - questionsUsedToday;
+
+  // Auto-switch to chat when PDF loaded
+  useEffect(() => {
+    if (pdfText) setView("chat");
+  }, [pdfText]);
+
+  // Scroll to bottom
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
 
   const handleNewChat = () => {
+    onReset();
     setView("home");
     setActiveChat(null);
-    setInputValue("");
     if (isMobile) setSidebarOpen(false);
   };
 
@@ -92,27 +234,90 @@ export default function StarterLayout({
     if (isMobile) setSidebarOpen(false);
   };
 
+  const handleNavClick = (id: string) => {
+    setActiveNav(id);
+    if (id === "settings") setView("settings");
+    else if (view === "settings") setView(pdfText ? "chat" : "home");
+    if (isMobile) setSidebarOpen(false);
+  };
+
+  // ── PDF upload handler with limit check ──
+  const handleFileWithLimit = (file: File) => {
+    if (!file) return;
+    if (tier.pdfsPerDay !== -1 && pdfsUploadedToday >= tier.pdfsPerDay) {
+      // Starter: inline message, no upgrade modal
+      if (currentTier === "starter") {
+        // Message is shown inline — handleFile in AppNew already guards this
+        // but we add a UI nudge here
+        return;
+      }
+    }
+    handleFile(file);
+  };
+
+  // ── Limit message component ──
+  const LimitMessage = ({ type }: { type: "pdfs" | "questions" | "exports" }) => {
+    const messages = {
+      pdfs:      { emoji: "📄", text: `You've used all ${tier.pdfsPerDay} PDFs for today.` },
+      questions: { emoji: "💬", text: `You've used all ${tier.dailyQuestions} questions for today.` },
+      exports:   { emoji: "📤", text: `You've used all ${tier.maxExportsPerDay} exports for today.` },
+    };
+    const m = messages[type];
+    return (
+      <div style={{
+        background: "#FFFBF0", border: `1px solid #FFE4A0`,
+        borderRadius: 12, padding: "14px 16px", marginTop: 8,
+        display: "flex", flexDirection: "column", gap: 6,
+      }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>
+          {m.emoji} {m.text}
+        </div>
+        <div style={{ fontSize: 12, color: C.textMid }}>
+          Your limit resets tomorrow at midnight.
+        </div>
+        {currentTier === "starter" && (
+          <div onClick={onUpgrade} style={{
+            fontSize: 11, color: C.orange, fontWeight: 700,
+            cursor: "pointer", marginTop: 2,
+          }}>
+            Go Pro for unlimited access →
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Check if at limit for showing inline warning
+  const atPdfLimit      = tier.pdfsPerDay      !== -1 && pdfsUploadedToday      >= tier.pdfsPerDay;
+  const atQuestionLimit = tier.dailyQuestions   !== -1 && questionsUsedToday     >= tier.dailyQuestions;
+  const atExportLimit   = tier.maxExportsPerDay !== -1 && exportsUsedToday       >= tier.maxExportsPerDay;
+
   return (
     <div style={{
       display: "flex", height: "100vh", overflow: "hidden",
-      fontFamily: "'Montserrat', sans-serif",
-      background: S.chatBg,
+      fontFamily: "'Montserrat', sans-serif", background: S.chatBg,
     }}>
       <style>{`
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .nav-item { transition: background 0.15s; cursor: pointer; border-radius: 8px; }
-        .nav-item:hover { background: ${S.sidebarHover} !important; }
-        .send-btn { transition: opacity 0.15s, transform 0.15s; }
-        .send-btn:hover { opacity: 0.88; transform: scale(1.04); }
-        .chat-input:focus { outline: none; border-color: ${S.inputFocus} !important; box-shadow: 0 0 0 3px rgba(255,140,0,0.10) !important; }
-        .new-chat-btn:hover { opacity: 0.88; }
-        .chat-item:hover { background: rgba(255,255,255,0.06) !important; }
-        * { box-sizing: border-box; }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 4px; }
+        @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+        .nav-item { transition:background 0.15s; cursor:pointer; border-radius:8px; }
+        .nav-item:hover { background:${S.sidebarHover}!important; }
+        .send-btn { transition:opacity 0.15s,transform 0.15s; }
+        .send-btn:hover { opacity:0.88; transform:scale(1.04); }
+        .chat-input:focus { outline:none; border-color:${S.inputFocus}!important; box-shadow:0 0 0 3px rgba(255,140,0,0.10)!important; }
+        .pill-select { appearance:none; -webkit-appearance:none; cursor:pointer; }
+        .pill-select:focus { outline:none; border-color:${S.inputFocus}!important; }
+        .chat-item:hover { background:rgba(255,255,255,0.06)!important; }
+        * { box-sizing:border-box; }
+        ::-webkit-scrollbar { width:4px; }
+        ::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.10); border-radius:4px; }
       `}</style>
 
-      {/* ── Mobile overlay ── */}
+      {/* Hidden file input */}
+      <input ref={fileRef} type="file" accept=".pdf" style={{ display: "none" }}
+        onChange={e => { if (e.target.files?.[0]) handleFileWithLimit(e.target.files[0]); e.target.value = ""; }} />
+
+      {/* Mobile overlay */}
       {isMobile && sidebarOpen && (
         <div onClick={() => setSidebarOpen(false)} style={{
           position: "fixed", inset: 0, zIndex: 40,
@@ -120,9 +325,7 @@ export default function StarterLayout({
         }} />
       )}
 
-      {/* ════════════════════════════════
-          SIDEBAR
-      ════════════════════════════════ */}
+      {/* ════════ SIDEBAR ════════ */}
       <div style={{
         width: 240, background: S.sidebar,
         display: "flex", flexDirection: "column", flexShrink: 0,
@@ -133,19 +336,16 @@ export default function StarterLayout({
           transition: "transform 0.25s cubic-bezier(0.4,0,0.2,1)",
         } : {}),
       }}>
-
         {/* Logo */}
         <div style={{
           padding: "16px 16px 12px",
           borderBottom: `1px solid ${S.sidebarBorder}`,
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
-          <button
-            onClick={handleNewChat}
-            style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
-          >
+          <button onClick={handleNewChat}
+            style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
             <img src="/header-logo.png" alt="PageWise"
-              style={{ height: 30, width: "auto", objectFit: "contain", filter: "brightness(1.1)", display: "block" }} />
+              style={{ height: 30, objectFit: "contain", filter: "brightness(1.1)", display: "block" }} />
           </button>
           {isMobile && (
             <button onClick={() => setSidebarOpen(false)} style={{
@@ -155,31 +355,26 @@ export default function StarterLayout({
           )}
         </div>
 
-        {/* ── New Chat Button ── */}
+        {/* New Chat */}
         <div style={{ padding: "12px 12px 4px" }}>
-          <button
-            className="new-chat-btn"
-            onClick={handleNewChat}
-            style={{
-              width: "100%",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-              background: "rgba(255,140,0,0.12)",
-              border: `1px solid rgba(255,140,0,0.25)`,
-              borderRadius: 10, padding: "9px 0",
-              color: S.sidebarActive, fontSize: 12, fontWeight: 700,
-              cursor: "pointer", fontFamily: "'Montserrat', sans-serif",
-              letterSpacing: 0.3, transition: "opacity 0.15s",
-            }}
-          >
+          <button onClick={handleNewChat} style={{
+            width: "100%",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+            background: "rgba(255,140,0,0.12)", border: `1px solid rgba(255,140,0,0.25)`,
+            borderRadius: 10, padding: "9px 0",
+            color: S.sidebarActive, fontSize: 12, fontWeight: 700,
+            cursor: "pointer", fontFamily: "'Montserrat', sans-serif",
+            letterSpacing: 0.3, transition: "opacity 0.15s",
+          }}>
             <span style={{ fontSize: 16, lineHeight: 1 }}>＋</span> New Chat
           </button>
         </div>
 
-        {/* Nav Items */}
+        {/* Nav */}
         <nav style={{ padding: "8px 10px", flex: 1, overflowY: "auto" }}>
           {NAV_ITEMS.map(item => (
             <div key={item.id} className="nav-item"
-              onClick={() => { setActiveNav(item.id); if (isMobile) setSidebarOpen(false); }}
+              onClick={() => handleNavClick(item.id)}
               style={{
                 display: "flex", alignItems: "center", gap: 10,
                 padding: "9px 12px", marginBottom: 2,
@@ -201,22 +396,18 @@ export default function StarterLayout({
             </div>
           ))}
 
-          {/* Recent Chats list */}
+          {/* Recent Chats */}
           {activeNav === "chats" && (
             <div style={{ marginTop: 6 }}>
               {MOCK_CHATS.map(chat => (
-                <div
-                  key={chat.id}
-                  className="chat-item"
+                <div key={chat.id} className="chat-item"
                   onClick={() => handleSelectChat(chat.id)}
                   style={{
-                    padding: "8px 12px", borderRadius: 8, marginBottom: 2,
-                    cursor: "pointer",
+                    padding: "8px 12px", borderRadius: 8, marginBottom: 2, cursor: "pointer",
                     background: activeChat === chat.id ? "rgba(255,140,0,0.08)" : "transparent",
                     borderLeft: activeChat === chat.id ? `2px solid ${S.sidebarActive}` : "2px solid transparent",
                     transition: "background 0.15s",
-                  }}
-                >
+                  }}>
                   <div style={{
                     fontSize: 12, fontWeight: activeChat === chat.id ? 700 : 500,
                     color: activeChat === chat.id ? S.sidebarActive : S.sidebarText,
@@ -226,17 +417,13 @@ export default function StarterLayout({
                   <div style={{ fontSize: 10, color: "#665E52" }}>{chat.time}</div>
                 </div>
               ))}
-
-              {/* Retention notice */}
               <div style={{
                 margin: "10px 4px 0", padding: "8px 10px",
-                background: "rgba(255,140,0,0.06)",
-                border: "1px solid rgba(255,140,0,0.12)",
+                background: "rgba(255,140,0,0.06)", border: "1px solid rgba(255,140,0,0.12)",
                 borderRadius: 8, fontSize: 10, color: "#998877", lineHeight: 1.6,
               }}>
                 10 chats · 14-day retention<br />
-                <span onClick={onUpgrade}
-                  style={{ color: S.sidebarActive, fontWeight: 700, cursor: "pointer" }}>
+                <span onClick={onUpgrade} style={{ color: S.sidebarActive, fontWeight: 700, cursor: "pointer" }}>
                   Upgrade to Pro for unlimited →
                 </span>
               </div>
@@ -245,15 +432,14 @@ export default function StarterLayout({
         </nav>
 
         {/* Upgrade + Logout */}
-        <div style={{ padding: "12px 12px", borderTop: `1px solid ${S.sidebarBorder}` }}>
+        <div style={{ padding: "12px", borderTop: `1px solid ${S.sidebarBorder}` }}>
           <button onClick={onUpgrade} style={{
             width: "100%",
             background: "linear-gradient(135deg, #FF8C00 0%, #E67300 100%)",
             border: "none", borderRadius: 10, padding: "10px 0",
             color: "#fff", fontSize: 12, fontWeight: 700,
             cursor: "pointer", fontFamily: "'Montserrat', sans-serif",
-            letterSpacing: 0.3, boxShadow: "0 2px 8px rgba(255,140,0,0.30)",
-            transition: "opacity 0.15s",
+            boxShadow: "0 2px 8px rgba(255,140,0,0.30)", transition: "opacity 0.15s",
           }}>⚡ Upgrade to Pro</button>
           <div onClick={onLogout} style={{
             textAlign: "center", fontSize: 10, color: "#665E52",
@@ -262,201 +448,281 @@ export default function StarterLayout({
         </div>
       </div>
 
-      {/* ════════════════════════════════
-          MAIN AREA
-      ════════════════════════════════ */}
+      {/* ════════ MAIN AREA ════════ */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-        {/* ── Sticky Header ── */}
+        {/* ── Header ── */}
         <div style={{
           background: S.header, borderBottom: `1px solid ${S.headerBorder}`,
-          padding: "0 20px", height: 56,
+          padding: "0 16px", height: 52,
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          flexShrink: 0, boxShadow: S.shadow,
-          position: "sticky", top: 0, zIndex: 10,
+          flexShrink: 0, boxShadow: S.shadow, position: "sticky", top: 0, zIndex: 10,
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {isMobile && (
               <button onClick={() => setSidebarOpen(true)} style={{
                 background: "none", border: "none", fontSize: 20,
-                cursor: "pointer", color: C.dark, padding: "4px 6px", borderRadius: 6,
+                cursor: "pointer", color: C.dark, padding: 4,
               }}>☰</button>
             )}
-            {view === "chat" && (
+            {view === "chat" && pdfName && (
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>
-                  {MOCK_CHATS.find(c => c.id === activeChat)?.title || "Biology Notes.pdf"}
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.dark, lineHeight: 1.2 }}>
+                  {pdfName}
                 </div>
                 <div style={{ fontSize: 10, color: C.textMid, fontWeight: 500 }}>
-                  {pdfsRemaining !== null
-                    ? `${pdfsUploadedToday} / ${tier.pdfsPerDay} PDFs today`
-                    : "Unlimited PDFs"}
+                  {pdfsRemaining !== null ? `${pdfsUploadedToday} / ${tier.pdfsPerDay} PDFs today` : "Unlimited PDFs"}
                 </div>
               </div>
             )}
-            {view === "home" && (
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>
-                Start a new conversation
-              </div>
-            )}
+            {view === "home"     && <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>New Chat</div>}
+            {view === "settings" && <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>Settings</div>}
           </div>
 
-          {view === "chat" && (
+          {/* Desktop controls */}
+          {!isMobile && view === "chat" && (
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <select value={selectedLang} onChange={e => setSelectedLang(e.target.value)}
+              <select value={language} onChange={e => setLanguage(e.target.value)} className="pill-select"
                 style={{
-                  background: C.bg, border: `1px solid ${S.inputBorder}`,
-                  borderRadius: 8, padding: "5px 8px", fontSize: 11,
-                  fontWeight: 600, color: C.dark,
-                  fontFamily: "'Montserrat', sans-serif", cursor: "pointer",
+                  background: S.pillBg, border: `1px solid ${S.pillBorder}`,
+                  borderRadius: 20, padding: "5px 12px", fontSize: 11,
+                  fontWeight: 600, color: C.dark, fontFamily: "'Montserrat', sans-serif",
                 }}>
                 {LANGUAGES.map(l => <option key={l}>{l}</option>)}
               </select>
-              <select value={selectedPersona} onChange={e => setSelectedPersona(e.target.value)}
+              <select value={persona} onChange={e => setPersona(e.target.value)} className="pill-select"
                 style={{
-                  background: C.bg, border: `1px solid ${S.inputBorder}`,
-                  borderRadius: 8, padding: "5px 10px", fontSize: 11,
-                  fontWeight: 600, color: C.dark,
-                  fontFamily: "'Montserrat', sans-serif", cursor: "pointer",
+                  background: S.pillBg, border: `1px solid ${S.pillBorder}`,
+                  borderRadius: 20, padding: "5px 12px", fontSize: 11,
+                  fontWeight: 600, color: C.dark, fontFamily: "'Montserrat', sans-serif",
                 }}>
                 {PERSONAS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
               </select>
-              <button style={{
-                background: "transparent", border: `1px solid ${S.inputBorder}`,
-                borderRadius: 8, padding: "5px 12px", fontSize: 11,
-                fontWeight: 600, color: C.dark, cursor: "pointer",
-                fontFamily: "'Montserrat', sans-serif",
-              }}>📤 Export</button>
+              <button
+                disabled={atExportLimit}
+                onClick={() => onExportPdf?.(messages, pdfName)}
+                style={{
+                  background: "transparent", border: `1px solid ${S.pillBorder}`,
+                  borderRadius: 20, padding: "5px 14px", fontSize: 11,
+                  fontWeight: 600, color: atExportLimit ? C.muted : C.dark,
+                  cursor: atExportLimit ? "not-allowed" : "pointer",
+                  fontFamily: "'Montserrat', sans-serif",
+                }}>📤 Export</button>
             </div>
           )}
         </div>
 
-        {/* ── Home / Landing state ── */}
+        {/* ── HOME view ── */}
         {view === "home" && (
           <div style={{
             flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-            padding: 32, animation: "fadeIn 0.2s ease",
+            padding: 32, animation: "fadeIn 0.25s ease",
           }}>
-            <div style={{ maxWidth: 440, width: "100%", textAlign: "center" }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>📄</div>
+            <div style={{ maxWidth: 400, width: "100%", textAlign: "center" }}>
+              <img src="/header-logo.png" alt="PageWise"
+                style={{ height: 44, objectFit: "contain", marginBottom: 20, opacity: 0.85 }} />
               <h2 style={{
                 fontFamily: "'Playfair Display', Georgia, serif",
-                fontSize: 26, color: C.dark, fontWeight: 700, marginBottom: 8,
+                fontSize: 24, color: C.dark, fontWeight: 700, marginBottom: 8, marginTop: 0,
               }}>Upload a PDF to start</h2>
-              <p style={{ fontSize: 13, color: C.textMid, lineHeight: 1.7, marginBottom: 24 }}>
-                Drop any document and ask questions,<br />
-                extract insights, or generate study notes.
+              <p style={{ fontSize: 13, color: C.textMid, lineHeight: 1.7, marginBottom: 24, marginTop: 0 }}>
+                Drop any document and ask questions,<br />extract insights, or generate study notes.
               </p>
-              <button
-                onClick={() => setView("chat")} // TODO: trigger real file input
-                style={{
-                  background: C.orange, border: "none", borderRadius: 12,
-                  padding: "13px 32px", color: "#fff", fontSize: 14,
+
+              {/* PDF limit warning on home */}
+              {atPdfLimit ? (
+                <LimitMessage type="pdfs" />
+              ) : (
+                <button onClick={() => fileRef.current?.click()} style={{
+                  background: C.orange, border: "none", borderRadius: 50,
+                  padding: "13px 36px", color: "#fff", fontSize: 14,
                   fontWeight: 700, cursor: "pointer",
                   fontFamily: "'Montserrat', sans-serif",
                   boxShadow: "0 4px 16px rgba(255,140,0,0.30)",
-                }}>
-                📎 Upload PDF
-              </button>
+                  display: "inline-flex", alignItems: "center", gap: 8,
+                }}>📎 Upload PDF</button>
+              )}
 
-              {/* Recent chats shortcut */}
-              {MOCK_CHATS.length > 0 && (
-                <div style={{ marginTop: 32 }}>
-                  <div style={{
-                    fontSize: 10, fontWeight: 700, color: C.muted,
-                    letterSpacing: 1, marginBottom: 10, textTransform: "uppercase",
-                  }}>Or continue a recent chat</div>
-                  {MOCK_CHATS.slice(0, 3).map(chat => (
-                    <div key={chat.id} onClick={() => handleSelectChat(chat.id)}
-                      style={{
-                        padding: "10px 14px", borderRadius: 10, marginBottom: 6,
-                        background: "#fff", border: `1px solid ${S.inputBorder}`,
-                        cursor: "pointer", textAlign: "left",
-                        display: "flex", justifyContent: "space-between", alignItems: "center",
-                        transition: "border-color 0.15s",
-                      }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: C.dark }}>
-                        {chat.title}
-                      </span>
-                      <span style={{ fontSize: 10, color: C.muted }}>{chat.time}</span>
-                    </div>
-                  ))}
+              {/* PDF usage indicator */}
+              {!atPdfLimit && tier.pdfsPerDay !== -1 && (
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 12, fontWeight: 500 }}>
+                  {pdfsUploadedToday} / {tier.pdfsPerDay} PDFs used today
                 </div>
               )}
+
+              {/* Recent chats */}
+              <div style={{ marginTop: 32 }}>
+                <div style={{
+                  fontSize: 10, fontWeight: 700, color: C.muted,
+                  letterSpacing: 1.5, marginBottom: 12, textTransform: "uppercase",
+                }}>Or continue a recent chat</div>
+                {MOCK_CHATS.slice(0, 3).map(chat => (
+                  <div key={chat.id} onClick={() => handleSelectChat(chat.id)}
+                    style={{
+                      padding: "11px 16px", borderRadius: 12, marginBottom: 8,
+                      background: "#fff", border: `1px solid ${S.inputBorder}`,
+                      cursor: "pointer", textAlign: "left",
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                      boxShadow: S.shadow,
+                    }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = C.orange}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = S.inputBorder}
+                  >
+                    <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{chat.title}</span>
+                    <span style={{ fontSize: 10, color: C.muted, marginLeft: 12 }}>{chat.time}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
 
-        {/* ── Chat view ── */}
+        {/* ── SETTINGS view ── */}
+        {view === "settings" && (
+          <div style={{ flex: 1, overflowY: "auto", animation: "fadeIn 0.2s ease" }}>
+            <SettingsView onNavigate={onNavigate} onLogout={onLogout} onUpgrade={onUpgrade} tier={tier} />
+          </div>
+        )}
+
+        {/* ── CHAT view ── */}
         {view === "chat" && (
           <>
             <div style={{
-              flex: 1, overflowY: "auto", padding: "24px 20px",
+              flex: 1, overflowY: "auto", padding: "20px 16px",
               display: "flex", flexDirection: "column", gap: 16,
               maxWidth: 720, width: "100%", margin: "0 auto",
             }}>
-              {MOCK_MESSAGES.map((msg, i) => (
+              {messages.map((msg, i) => (
                 <div key={i} style={{
                   display: "flex",
                   justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
+                  animation: "fadeIn 0.2s ease",
                 }}>
-                  {msg.role === "user" ? (
+                  {/* System message — PDF switch notification */}
+                  {msg.isSystem ? (
+                    <div style={{
+                      width: "100%", textAlign: "center",
+                      fontSize: 11, color: C.textMid, fontWeight: 500,
+                      padding: "6px 0",
+                    }}>
+                      {msg.text}
+                    </div>
+                  ) : msg.isLimit ? (
+                    /* Limit message inline in chat */
+                    <div style={{ maxWidth: "88%", width: "100%" }}>
+                      <LimitMessage type={msg.text.includes("PDF") ? "pdfs" : msg.text.includes("export") ? "exports" : "questions"} />
+                    </div>
+                  ) : msg.role === "user" ? (
                     <div style={{
                       background: S.userBubble, color: S.userBubbleText,
-                      borderRadius: "16px 16px 4px 16px",
-                      padding: "10px 16px", fontSize: 13, fontWeight: 600,
-                      maxWidth: "75%", boxShadow: "0 2px 8px rgba(255,140,0,0.20)",
+                      borderRadius: "18px 18px 4px 18px",
+                      padding: "11px 16px", fontSize: 13, fontWeight: 600,
+                      maxWidth: "78%", boxShadow: "0 2px 8px rgba(255,140,0,0.20)",
+                      lineHeight: 1.5,
                     }}>{msg.text}</div>
                   ) : (
                     <div style={{
                       background: S.aiBubble, border: `1px solid ${S.aiBubbleBorder}`,
-                      borderRadius: "4px 16px 16px 16px",
-                      padding: "14px 18px", maxWidth: "85%", boxShadow: S.shadow,
+                      borderRadius: "4px 18px 18px 18px",
+                      padding: "14px 18px", maxWidth: "88%", boxShadow: S.shadow,
                     }}>
                       <div style={{
-                        fontSize: 10, fontWeight: 700, color: C.orange,
-                        letterSpacing: 1, marginBottom: 10, textTransform: "uppercase",
+                        fontSize: 9, fontWeight: 700, color: C.orange,
+                        letterSpacing: 1.5, marginBottom: 10, textTransform: "uppercase",
                       }}>PageWise</div>
-                      {msg.sections?.map((section, j) => (
-                        <div key={j} style={{ marginBottom: j < msg.sections!.length - 1 ? 12 : 0 }}>
-                          <div style={{
-                            fontSize: 11, fontWeight: 700, color: C.dark,
-                            letterSpacing: 0.5, marginBottom: 4, textTransform: "uppercase",
-                          }}>{section.heading}</div>
-                          <div style={{
-                            fontSize: 13, color: "#3D3530", lineHeight: 1.65,
-                          }}>{section.body}</div>
-                          {j < msg.sections!.length - 1 && (
-                            <div style={{ height: 1, background: S.aiBubbleBorder, marginTop: 12 }} />
-                          )}
-                        </div>
-                      ))}
+                      <div
+                        style={{ fontSize: 13, color: "#3D3530", lineHeight: 1.7 }}
+                        dangerouslySetInnerHTML={{ __html: fmt(msg.text) }}
+                      />
                     </div>
                   )}
                 </div>
               ))}
+
+              {/* Loading dots */}
+              {loading && (
+                <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                  <div style={{
+                    background: S.aiBubble, border: `1px solid ${S.aiBubbleBorder}`,
+                    borderRadius: "4px 18px 18px 18px",
+                    padding: "14px 18px", boxShadow: S.shadow,
+                  }}>
+                    <Dots />
+                  </div>
+                </div>
+              )}
+
+              {/* Question limit warning inline */}
+              {atQuestionLimit && (
+                <LimitMessage type="questions" />
+              )}
+
+              <div ref={bottomRef} />
             </div>
 
-            {/* ── Sticky Input Bar ── */}
+            {/* ── Mobile pill toolbar ── */}
+            {isMobile && (
+              <div style={{
+                background: S.header, borderTop: `1px solid ${S.headerBorder}`,
+                padding: "8px 16px",
+                display: "flex", gap: 8, alignItems: "center", overflowX: "auto",
+              }}>
+                <select value={persona} onChange={e => setPersona(e.target.value)} className="pill-select"
+                  style={{
+                    background: S.pillBg, border: `1px solid ${S.pillBorder}`,
+                    borderRadius: 20, padding: "5px 12px", fontSize: 11,
+                    fontWeight: 700, color: C.dark, fontFamily: "'Montserrat', sans-serif", flexShrink: 0,
+                  }}>
+                  {PERSONAS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+                </select>
+                <select value={language} onChange={e => setLanguage(e.target.value)} className="pill-select"
+                  style={{
+                    background: S.pillBg, border: `1px solid ${S.pillBorder}`,
+                    borderRadius: 20, padding: "5px 12px", fontSize: 11,
+                    fontWeight: 600, color: C.dark, fontFamily: "'Montserrat', sans-serif", flexShrink: 0,
+                  }}>
+                  {LANGUAGES.map(l => <option key={l}>{l}</option>)}
+                </select>
+                <button
+                  disabled={atExportLimit}
+                  onClick={() => onExportPdf?.(messages, pdfName)}
+                  style={{
+                    background: "transparent", border: `1px solid ${S.pillBorder}`,
+                    borderRadius: 20, padding: "5px 14px", fontSize: 11,
+                    fontWeight: 600, color: atExportLimit ? C.muted : C.dark,
+                    cursor: atExportLimit ? "not-allowed" : "pointer",
+                    fontFamily: "'Montserrat', sans-serif", flexShrink: 0,
+                  }}>📤 Export</button>
+              </div>
+            )}
+
+            {/* ── Input Bar ── */}
             <div style={{
               background: S.header, borderTop: `1px solid ${S.headerBorder}`,
-              padding: "12px 20px", flexShrink: 0,
+              padding: "10px 16px 12px", flexShrink: 0,
               position: "sticky", bottom: 0, zIndex: 10,
             }}>
               <div style={{
                 maxWidth: 720, margin: "0 auto",
                 display: "flex", gap: 8, alignItems: "flex-end",
               }}>
-                <button onClick={() => setView("home")} title="Upload new PDF" style={{
-                  background: "none", border: `1px solid ${S.inputBorder}`,
-                  borderRadius: 10, padding: "10px 12px",
-                  fontSize: 16, cursor: "pointer", color: C.textMid, flexShrink: 0,
-                }}>📎</button>
-                <textarea className="chat-input" value={inputValue}
-                  onChange={e => setInputValue(e.target.value)}
-                  placeholder="Ask anything about your documents..."
+                {/* PDF upload mid-chat */}
+                <button
+                  onClick={() => !atPdfLimit && fileRef.current?.click()}
+                  title={atPdfLimit ? "Daily PDF limit reached" : "Upload new PDF"}
+                  style={{
+                    background: "none", border: `1px solid ${atPdfLimit ? "#FFCCCC" : S.inputBorder}`,
+                    borderRadius: 10, padding: "10px 12px",
+                    fontSize: 16, cursor: atPdfLimit ? "not-allowed" : "pointer",
+                    color: atPdfLimit ? "#FFAAAA" : C.textMid, flexShrink: 0,
+                  }}>📎</button>
+
+                <textarea className="chat-input" value={input}
+                  onChange={e => setInput(e.target.value)}
+                  placeholder={atQuestionLimit ? "Question limit reached for today..." : "Ask anything about your documents..."}
+                  disabled={atQuestionLimit}
                   rows={1} style={{
-                    flex: 1, background: S.inputBg,
+                    flex: 1, background: atQuestionLimit ? "#FAF8F5" : S.inputBg,
                     border: `1.5px solid ${S.inputBorder}`,
                     borderRadius: 12, padding: "10px 14px",
                     fontSize: 13, fontFamily: "'Montserrat', sans-serif",
@@ -464,22 +730,26 @@ export default function StarterLayout({
                     transition: "border-color 0.15s, box-shadow 0.15s",
                   }}
                   onKeyDown={e => {
-                    if (e.key === "Enter" && !e.shiftKey) {
+                    if (e.key === "Enter" && !e.shiftKey && !atQuestionLimit) {
                       e.preventDefault();
-                      setInputValue("");
+                      send(input);
                     }
                   }} />
-                <button className="send-btn" style={{
-                  background: inputValue.trim() ? C.orange : S.inputBorder,
-                  border: "none", borderRadius: 10, padding: "10px 14px",
-                  fontSize: 16, cursor: inputValue.trim() ? "pointer" : "default",
-                  color: inputValue.trim() ? "#fff" : C.muted,
-                  flexShrink: 0, transition: "background 0.15s",
-                }}>➤</button>
+
+                <button className="send-btn"
+                  onClick={() => !atQuestionLimit && send(input)}
+                  disabled={atQuestionLimit || !input.trim() || loading || streaming}
+                  style={{
+                    background: input.trim() && !atQuestionLimit ? C.orange : S.inputBorder,
+                    border: "none", borderRadius: 10, padding: "10px 14px",
+                    fontSize: 16,
+                    cursor: input.trim() && !atQuestionLimit ? "pointer" : "default",
+                    color: input.trim() && !atQuestionLimit ? "#fff" : C.muted,
+                    flexShrink: 0, transition: "background 0.15s",
+                  }}>➤</button>
               </div>
               <div style={{
-                textAlign: "center", fontSize: 10, color: C.muted,
-                marginTop: 8, fontWeight: 500,
+                textAlign: "center", fontSize: 10, color: C.muted, marginTop: 6, fontWeight: 500,
               }}>
                 AI responses may be inaccurate · Verify important information
               </div>
