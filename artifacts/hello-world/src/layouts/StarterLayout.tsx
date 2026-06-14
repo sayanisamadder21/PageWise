@@ -24,6 +24,22 @@ const S = {
   pillBorder: "#E5DFD6",
 };
 
+const SUGGESTIONS = [
+  "Summarize in 3 bullet points",
+  "What are the key takeaways?",
+  "List all action items",
+  "Extract all dates and deadlines",
+  "Explain in simple language",
+  "What problems does this solve?",
+];
+
+const AUTO_PROMPTS: Record<string, string> = {
+  insights:   "Extract the key insights from this document",
+  studynotes: "Generate comprehensive study notes from this document",
+  examgen:    "Generate exam questions from this document",
+  summarizer: "Give me a TL;DR summary in 5 bullet points",
+};
+
 interface Message {
   role: string;
   text: string;
@@ -33,13 +49,11 @@ interface Message {
 }
 
 interface StarterLayoutProps {
-  // Tier & usage
   tier: TierConfig;
   currentTier: "free" | "starter" | "pro";
   pdfsUploadedToday: number;
   questionsUsedToday: number;
   exportsUsedToday: number;
-  // PDF & chat state
   pdfName: string;
   pdfText: string;
   pdfMeta: { pages: number; words: string } | null;
@@ -52,7 +66,6 @@ interface StarterLayoutProps {
   setPersona: (v: string) => void;
   language: string;
   setLanguage: (v: string) => void;
-  // Handlers
   handleFile: (file: File) => void;
   send: (text?: string) => void;
   onLogout: () => void;
@@ -60,7 +73,6 @@ interface StarterLayoutProps {
   onNavigate?: (page: "terms" | "privacy") => void;
   onReset: () => void;
   fmt: (t: string) => string;
-  // Export
   onExportPdf?: (msgs: Message[], filename?: string) => void;
 }
 
@@ -86,7 +98,6 @@ const MOCK_CHATS = [
 
 type View = "home" | "chat" | "settings";
 
-// ── Dots loader ──
 function Dots() {
   return (
     <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
@@ -101,7 +112,6 @@ function Dots() {
   );
 }
 
-// ── Settings view ──
 function SettingsView({ onNavigate, onLogout, onUpgrade, tier }: {
   onNavigate?: (page: "terms" | "privacy") => void;
   onLogout: () => void;
@@ -135,8 +145,8 @@ function SettingsView({ onNavigate, onLogout, onUpgrade, tier }: {
     {
       title: "Account Actions",
       items: [
-        { label: "Log out",       value: "", type: "action", action: onLogout,  color: C.textMid },
-        { label: "Delete Account",value: "", type: "action", action: () => {},  color: "#CC0000"  },
+        { label: "Log out",        value: "", type: "action", action: onLogout, color: C.textMid },
+        { label: "Delete Account", value: "", type: "action", action: () => {}, color: "#CC0000"  },
       ],
     },
   ];
@@ -148,7 +158,6 @@ function SettingsView({ onNavigate, onLogout, onUpgrade, tier }: {
         fontFamily: "'Playfair Display', Georgia, serif",
         marginBottom: 24, marginTop: 0,
       }}>Settings</h2>
-
       {sections.map(section => (
         <div key={section.title} style={{ marginBottom: 24 }}>
           <div style={{
@@ -206,16 +215,16 @@ export default function StarterLayout({
   const [activeChat, setActiveChat]   = useState<number | null>(1);
   const fileRef   = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const [isMobile, setIsMobile] = useState( () => window.innerWidth < 768);
 
+  // ── FIX 1: Responsive isMobile with resize listener ──
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const pdfsRemaining      = tier.pdfsPerDay      === -1 ? null : tier.pdfsPerDay      - pdfsUploadedToday;
-  const questionsRemaining = tier.dailyQuestions   === -1 ? null : tier.dailyQuestions   - questionsUsedToday;
+  const pdfsRemaining = tier.pdfsPerDay === -1 ? null : tier.pdfsPerDay - pdfsUploadedToday;
 
   // Auto-switch to chat when PDF loaded
   useEffect(() => {
@@ -240,52 +249,45 @@ export default function StarterLayout({
     if (isMobile) setSidebarOpen(false);
   };
 
+  // ── FIX 2: Sidebar only closes on mobile ──
   const handleNavClick = (id: string) => {
     setActiveNav(id);
     if (id === "settings") setView("settings");
     else if (view === "settings") setView(pdfText ? "chat" : "home");
-    if (isMobile) setSidebarOpen(false);
+    if (isMobile) setSidebarOpen(false); // only close on mobile
   };
 
-  // ── PDF upload handler with limit check ──
   const handleFileWithLimit = (file: File) => {
     if (!file) return;
-    if (tier.pdfsPerDay !== -1 && pdfsUploadedToday >= tier.pdfsPerDay) {
-      // Starter: inline message, no upgrade modal
-      if (currentTier === "starter") {
-        // Message is shown inline — handleFile in AppNew already guards this
-        // but we add a UI nudge here
-        return;
-      }
-    }
+    if (tier.pdfsPerDay !== -1 && pdfsUploadedToday >= tier.pdfsPerDay) return;
     handleFile(file);
   };
 
-  // ── Limit message component ──
+  // ── Mode button click with autoprompt ──
+  const handleModeClick = (personaId: string) => {
+    setPersona(personaId);
+    if (AUTO_PROMPTS[personaId] && pdfText) {
+      send(AUTO_PROMPTS[personaId]);
+    }
+  };
+
   const LimitMessage = ({ type }: { type: "pdfs" | "questions" | "exports" }) => {
-    const messages = {
+    const msgs = {
       pdfs:      { emoji: "📄", text: `You've used all ${tier.pdfsPerDay} PDFs for today.` },
       questions: { emoji: "💬", text: `You've used all ${tier.dailyQuestions} questions for today.` },
       exports:   { emoji: "📤", text: `You've used all ${tier.maxExportsPerDay} exports for today.` },
     };
-    const m = messages[type];
+    const m = msgs[type];
     return (
       <div style={{
         background: "#FFFBF0", border: `1px solid #FFE4A0`,
         borderRadius: 12, padding: "14px 16px", marginTop: 8,
         display: "flex", flexDirection: "column", gap: 6,
       }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>
-          {m.emoji} {m.text}
-        </div>
-        <div style={{ fontSize: 12, color: C.textMid }}>
-          Your limit resets tomorrow at midnight.
-        </div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>{m.emoji} {m.text}</div>
+        <div style={{ fontSize: 12, color: C.textMid }}>Your limit resets tomorrow at midnight.</div>
         {currentTier === "starter" && (
-          <div onClick={onUpgrade} style={{
-            fontSize: 11, color: C.orange, fontWeight: 700,
-            cursor: "pointer", marginTop: 2,
-          }}>
+          <div onClick={onUpgrade} style={{ fontSize: 11, color: C.orange, fontWeight: 700, cursor: "pointer", marginTop: 2 }}>
             Go Pro for unlimited access →
           </div>
         )}
@@ -293,10 +295,10 @@ export default function StarterLayout({
     );
   };
 
-  // Check if at limit for showing inline warning
-  const atPdfLimit      = tier.pdfsPerDay      !== -1 && pdfsUploadedToday      >= tier.pdfsPerDay;
-  const atQuestionLimit = tier.dailyQuestions   !== -1 && questionsUsedToday     >= tier.dailyQuestions;
-  const atExportLimit   = tier.maxExportsPerDay !== -1 && exportsUsedToday       >= tier.maxExportsPerDay;
+  const atPdfLimit      = tier.pdfsPerDay      !== -1 && pdfsUploadedToday  >= tier.pdfsPerDay;
+  const atQuestionLimit = tier.dailyQuestions   !== -1 && questionsUsedToday >= tier.dailyQuestions;
+  const atExportLimit   = tier.maxExportsPerDay !== -1 && exportsUsedToday   >= tier.maxExportsPerDay;
+  const isBusy          = loading || streaming;
 
   return (
     <div style={{
@@ -308,12 +310,13 @@ export default function StarterLayout({
         @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
         .nav-item { transition:background 0.15s; cursor:pointer; border-radius:8px; }
         .nav-item:hover { background:${S.sidebarHover}!important; }
-        .send-btn { transition:opacity 0.15s,transform 0.15s; }
-        .send-btn:hover { opacity:0.88; transform:scale(1.04); }
+        .send-btn:hover:not(:disabled) { opacity:0.88; transform:scale(1.04); }
         .chat-input:focus { outline:none; border-color:${S.inputFocus}!important; box-shadow:0 0 0 3px rgba(255,140,0,0.10)!important; }
         .pill-select { appearance:none; -webkit-appearance:none; cursor:pointer; }
         .pill-select:focus { outline:none; border-color:${S.inputFocus}!important; }
         .chat-item:hover { background:rgba(255,255,255,0.06)!important; }
+        .mode-pill:hover { border-color:${S.sidebarActive}!important; background:${S.pillBg}!important; }
+        .suggestion-pill:hover { border-color:${C.orange}!important; color:${C.dark}!important; }
         * { box-sizing:border-box; }
         ::-webkit-scrollbar { width:4px; }
         ::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.10); border-radius:4px; }
@@ -348,8 +351,7 @@ export default function StarterLayout({
           borderBottom: `1px solid ${S.sidebarBorder}`,
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
-          <button onClick={handleNewChat}
-            style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
+          <button onClick={handleNewChat} style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
             <img src="/header-logo.png" alt="PageWise"
               style={{ height: 30, objectFit: "contain", filter: "brightness(1.1)", display: "block" }} />
           </button>
@@ -457,14 +459,15 @@ export default function StarterLayout({
       {/* ════════ MAIN AREA ════════ */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-        {/* ── Header ── */}
+        {/* ── Header — always fixed ── */}
         <div style={{
           background: S.header, borderBottom: `1px solid ${S.headerBorder}`,
           padding: "0 16px", height: 52,
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          flexShrink: 0, boxShadow: S.shadow, position: "sticky", top: 0, zIndex: 10,
+          flexShrink: 0, boxShadow: S.shadow, zIndex: 10,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            {/* Hamburger always visible on mobile */}
             {isMobile && (
               <button onClick={() => setSidebarOpen(true)} style={{
                 background: "none", border: "none", fontSize: 20,
@@ -473,9 +476,7 @@ export default function StarterLayout({
             )}
             {view === "chat" && pdfName && (
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.dark, lineHeight: 1.2 }}>
-                  {pdfName}
-                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.dark, lineHeight: 1.2 }}>{pdfName}</div>
                 <div style={{ fontSize: 10, color: C.textMid, fontWeight: 500 }}>
                   {pdfsRemaining !== null ? `${pdfsUploadedToday} / ${tier.pdfsPerDay} PDFs today` : "Unlimited PDFs"}
                 </div>
@@ -521,12 +522,13 @@ export default function StarterLayout({
         {/* ── HOME view ── */}
         {view === "home" && (
           <div style={{
-            flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+            flex: 1, overflowY: "auto",
+            display: "flex", alignItems: "center", justifyContent: "center",
             padding: 32, animation: "fadeIn 0.25s ease",
           }}>
             <div style={{ maxWidth: 400, width: "100%", textAlign: "center" }}>
               <img src="/header-logo.png" alt="PageWise"
-                style={{ height: 44, objectFit: "contain", marginBottom: 20, opacity: 0.85, display: "block", margin: "0 auto 20px" }} />
+                style={{ height: 44, objectFit: "contain", opacity: 0.85, display: "block", margin: "0 auto 20px" }} />
               <h2 style={{
                 fontFamily: "'Playfair Display', Georgia, serif",
                 fontSize: 24, color: C.dark, fontWeight: 700, marginBottom: 8, marginTop: 0,
@@ -535,7 +537,6 @@ export default function StarterLayout({
                 Drop any document and ask questions,<br />extract insights, or generate study notes.
               </p>
 
-              {/* PDF limit warning on home */}
               {atPdfLimit ? (
                 <LimitMessage type="pdfs" />
               ) : (
@@ -549,14 +550,12 @@ export default function StarterLayout({
                 }}>📎 Upload PDF</button>
               )}
 
-              {/* PDF usage indicator */}
               {!atPdfLimit && tier.pdfsPerDay !== -1 && (
                 <div style={{ fontSize: 11, color: C.muted, marginTop: 12, fontWeight: 500 }}>
                   {pdfsUploadedToday} / {tier.pdfsPerDay} PDFs used today
                 </div>
               )}
 
-              {/* Recent chats */}
               <div style={{ marginTop: 32 }}>
                 <div style={{
                   fontSize: 10, fontWeight: 700, color: C.muted,
@@ -590,13 +589,27 @@ export default function StarterLayout({
           </div>
         )}
 
-        {/* ── CHAT view ── */}
+        {/* ── CHAT view ── FIX 3: proper flex column so header/footer stay fixed ── */}
         {view === "chat" && (
-          <>
+          <div style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+            minHeight: 0,
+          }}>
+            {/* Scrollable messages area ONLY */}
             <div style={{
-              flex: 1, overflowY: "auto", padding: "20px 16px",
-              display: "flex", flexDirection: "column", gap: 16,
-              maxWidth: 720, width: "100%", margin: "0 auto",
+              flex: 1,
+              overflowY: "auto",
+              padding: "20px 16px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 16,
+              maxWidth: 720,
+              width: "100%",
+              margin: "0 auto",
+              minHeight: 0,
             }}>
               {messages.map((msg, i) => (
                 <div key={i} style={{
@@ -604,17 +617,12 @@ export default function StarterLayout({
                   justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
                   animation: "fadeIn 0.2s ease",
                 }}>
-                  {/* System message — PDF switch notification */}
                   {msg.isSystem ? (
                     <div style={{
                       width: "100%", textAlign: "center",
-                      fontSize: 11, color: C.textMid, fontWeight: 500,
-                      padding: "6px 0",
-                    }}>
-                      {msg.text}
-                    </div>
+                      fontSize: 11, color: C.textMid, fontWeight: 500, padding: "6px 0",
+                    }}>{msg.text}</div>
                   ) : msg.isLimit ? (
-                    /* Limit message inline in chat */
                     <div style={{ maxWidth: "88%", width: "100%" }}>
                       <LimitMessage type={msg.text.includes("PDF") ? "pdfs" : msg.text.includes("export") ? "exports" : "questions"} />
                     </div>
@@ -658,29 +666,61 @@ export default function StarterLayout({
                 </div>
               )}
 
-              {/* Question limit warning inline */}
-              {atQuestionLimit && (
-                <LimitMessage type="questions" />
+              {/* ── FIX 4: Preset suggestion pills after first message ── */}
+              {messages.length <= 1 && !loading && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{
+                    fontSize: 10, fontWeight: 700, color: C.muted,
+                    letterSpacing: 1.5, textTransform: "uppercase",
+                  }}>Try asking</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {SUGGESTIONS.map((q, i) => (
+                      <button key={i} className="suggestion-pill"
+                        onClick={() => !isBusy && send(q)}
+                        disabled={isBusy}
+                        style={{
+                          background: "#fff", border: `1px solid ${S.inputBorder}`,
+                          borderRadius: 20, padding: "7px 14px",
+                          fontSize: 12, color: C.textMid,
+                          cursor: isBusy ? "not-allowed" : "pointer",
+                          fontFamily: "'Montserrat', sans-serif", fontWeight: 500,
+                          transition: "all 0.15s", opacity: isBusy ? 0.5 : 1,
+                        }}>{q}</button>
+                    ))}
+                  </div>
+                </div>
               )}
+
+              {/* Question limit warning */}
+              {atQuestionLimit && <LimitMessage type="questions" />}
 
               <div ref={bottomRef} />
             </div>
 
-            {/* ── Mobile pill toolbar ── */}
+            {/* ── Mobile mode pill toolbar — fixed above input ── */}
             {isMobile && (
               <div style={{
                 background: S.header, borderTop: `1px solid ${S.headerBorder}`,
-                padding: "8px 16px",
-                display: "flex", gap: 8, alignItems: "center", overflowX: "auto",
+                padding: "8px 12px",
+                display: "flex", gap: 6, alignItems: "center",
+                overflowX: "auto", flexShrink: 0,
               }}>
-                <select value={persona} onChange={e => setPersona(e.target.value)} className="pill-select"
-                  style={{
-                    background: S.pillBg, border: `1px solid ${S.pillBorder}`,
-                    borderRadius: 20, padding: "5px 12px", fontSize: 11,
-                    fontWeight: 700, color: C.dark, fontFamily: "'Montserrat', sans-serif", flexShrink: 0,
-                  }}>
-                  {PERSONAS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-                </select>
+                {PERSONAS.map(p => (
+                  <button key={p.id} className="mode-pill"
+                    onClick={() => handleModeClick(p.id)}
+                    disabled={isBusy}
+                    style={{
+                      background: persona === p.id ? C.dark : S.pillBg,
+                      border: `1px solid ${persona === p.id ? C.orange : S.pillBorder}`,
+                      borderRadius: 20, padding: "5px 12px", fontSize: 11,
+                      fontWeight: 700,
+                      color: persona === p.id ? C.orange : C.dark,
+                      cursor: isBusy ? "not-allowed" : "pointer",
+                      fontFamily: "'Montserrat', sans-serif",
+                      flexShrink: 0, whiteSpace: "nowrap",
+                      transition: "all 0.15s", opacity: isBusy ? 0.5 : 1,
+                    }}>{p.label}</button>
+                ))}
                 <select value={language} onChange={e => setLanguage(e.target.value)} className="pill-select"
                   style={{
                     background: S.pillBg, border: `1px solid ${S.pillBorder}`,
@@ -702,17 +742,15 @@ export default function StarterLayout({
               </div>
             )}
 
-            {/* ── Input Bar ── */}
+            {/* ── Input Bar — fixed at bottom ── */}
             <div style={{
               background: S.header, borderTop: `1px solid ${S.headerBorder}`,
-              padding: "10px 16px 12px", flexShrink: 0,
-              position: "sticky", bottom: 0, zIndex: 10,
+              padding: "10px 16px 12px", flexShrink: 0, zIndex: 10,
             }}>
               <div style={{
                 maxWidth: 720, margin: "0 auto",
                 display: "flex", gap: 8, alignItems: "flex-end",
               }}>
-                {/* PDF upload mid-chat */}
                 <button
                   onClick={() => !atPdfLimit && fileRef.current?.click()}
                   title={atPdfLimit ? "Daily PDF limit reached" : "Upload new PDF"}
@@ -760,7 +798,7 @@ export default function StarterLayout({
                 AI responses may be inaccurate · Verify important information
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
