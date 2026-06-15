@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { C, PERSONAS, LANGUAGES } from "../AppNew";
+import { C, PERSONAS, LANGUAGES, ICON_PATHS } from "../AppNew";
 import { TierConfig } from "../config/tierConfig";
 
 const S = {
@@ -97,6 +97,16 @@ const MOCK_CHATS = [
 ];
 
 type View = "home" | "chat" | "settings";
+
+// ── SVG Icon (same as Free tier) ──
+function Icon({ name, size = 11, color = "currentColor" }: { name: string; size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+      <path d={ICON_PATHS[name]} />
+    </svg>
+  );
+}
 
 function Dots() {
   return (
@@ -217,7 +227,6 @@ export default function StarterLayout({
   const fileRef   = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // ── FIX 1: Responsive isMobile with resize listener ──
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -227,12 +236,10 @@ export default function StarterLayout({
 
   const pdfsRemaining = tier.pdfsPerDay === -1 ? null : tier.pdfsPerDay - pdfsUploadedToday;
 
-  // Auto-switch to chat when PDF loaded
   useEffect(() => {
     if (pdfText) setView("chat");
   }, [pdfText]);
 
-  // Scroll to bottom
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
@@ -250,12 +257,10 @@ export default function StarterLayout({
     if (isMobile) setSidebarOpen(false);
   };
 
-  // ── FIX 2: Sidebar only closes on mobile ──
   const handleNavClick = (id: string) => {
     setActiveNav(id);
     if (id === "settings") setView("settings");
     else if (view === "settings") setView(pdfText ? "chat" : "home");
-    // sidebar stays open — user closes it manually or by selecting a chat
   };
 
   const handleFileWithLimit = (file: File) => {
@@ -264,7 +269,6 @@ export default function StarterLayout({
     handleFile(file);
   };
 
-  // ── Mode button click with autoprompt ──
   const handleModeClick = (personaId: string) => {
     setPersona(personaId);
     if (AUTO_PROMPTS[personaId] && pdfText) {
@@ -311,16 +315,22 @@ export default function StarterLayout({
         @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
         .nav-item { transition:background 0.15s; cursor:pointer; border-radius:8px; }
         .nav-item:hover { background:${S.sidebarHover}!important; }
-        .send-btn:hover:not(:disabled) { opacity:0.88; transform:scale(1.04); }
-        .chat-input:focus { outline:none; border-color:${S.inputFocus}!important; box-shadow:0 0 0 3px rgba(255,140,0,0.10)!important; }
+        .send-btn:hover:not(:disabled) { background:#CC6F00!important; }
+        .chat-input:focus { outline:none; }
+        .unified-input:focus-within { border-color:${S.inputFocus}!important; box-shadow:0 0 0 3px rgba(255,140,0,0.10)!important; }
         .pill-select { appearance:none; -webkit-appearance:none; cursor:pointer; }
-        .pill-select:focus { outline:none; border-color:${S.inputFocus}!important; }
+        .pill-select:focus { outline:none; }
         .chat-item:hover { background:rgba(255,255,255,0.06)!important; }
-        .mode-pill:hover { border-color:${S.sidebarActive}!important; background:${S.pillBg}!important; }
+        .mode-btn:hover:not(:disabled) { background:${S.pillBg}!important; border-color:${C.orange}!important; }
         .suggestion-pill:hover { border-color:${C.orange}!important; color:${C.dark}!important; }
+        .pdf-plus-btn { opacity:0.5; transition:opacity 0.15s; }
+        .pdf-plus-btn:hover { opacity:1; }
         * { box-sizing:border-box; }
         ::-webkit-scrollbar { width:4px; }
         ::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.10); border-radius:4px; }
+        textarea { font-family:'Montserrat',sans-serif; }
+        textarea::placeholder { color:#B8A99A; font-style:italic; }
+        select { font-family:'Montserrat',sans-serif; }
       `}</style>
 
       {/* Hidden file input */}
@@ -460,7 +470,7 @@ export default function StarterLayout({
       {/* ════════ MAIN AREA ════════ */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-        {/* ── Header — always fixed ── */}
+        {/* ── Header ── */}
         <div style={{
           background: S.header, borderBottom: `1px solid ${S.headerBorder}`,
           padding: "0 16px", height: 52,
@@ -468,7 +478,6 @@ export default function StarterLayout({
           flexShrink: 0, boxShadow: S.shadow, zIndex: 10,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            {/* Hamburger always visible on mobile */}
             {isMobile && (
               <button onClick={() => setSidebarOpen(true)} style={{
                 background: "none", border: "none", fontSize: 20,
@@ -486,8 +495,6 @@ export default function StarterLayout({
             {view === "home"     && <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>New Chat</div>}
             {view === "settings" && <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>Settings</div>}
           </div>
-
-          {/* Header is clean — controls moved to footer */}
         </div>
 
         {/* ── HOME view ── */}
@@ -560,27 +567,15 @@ export default function StarterLayout({
           </div>
         )}
 
-        {/* ── CHAT view ── FIX 3: proper flex column so header/footer stay fixed ── */}
+        {/* ── CHAT view ── */}
         {view === "chat" && (
-          <div style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-            minHeight: 0,
-          }}>
-            {/* Scrollable messages area ONLY */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
+
+            {/* Scrollable messages */}
             <div style={{
-              flex: 1,
-              overflowY: "auto",
-              padding: "20px 16px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 16,
-              maxWidth: 720,
-              width: "100%",
-              margin: "0 auto",
-              minHeight: 0,
+              flex: 1, overflowY: "auto", padding: "20px 16px",
+              display: "flex", flexDirection: "column", gap: 16,
+              maxWidth: 720, width: "100%", margin: "0 auto", minHeight: 0,
             }}>
               {messages.map((msg, i) => (
                 <div key={i} style={{
@@ -624,7 +619,6 @@ export default function StarterLayout({
                 </div>
               ))}
 
-              {/* Loading dots */}
               {loading && (
                 <div style={{ display: "flex", justifyContent: "flex-start" }}>
                   <div style={{
@@ -637,7 +631,6 @@ export default function StarterLayout({
                 </div>
               )}
 
-              {/* ── FIX 4: Preset suggestion pills after first message ── */}
               {messages.length <= 1 && !loading && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <div style={{
@@ -662,109 +655,161 @@ export default function StarterLayout({
                 </div>
               )}
 
-              {/* Question limit warning */}
               {atQuestionLimit && <LimitMessage type="questions" />}
-
               <div ref={bottomRef} />
             </div>
 
-            {/* ── Input Bar — fixed at bottom ── */}
+            {/* ── Input Bar — Free tier style ── */}
             <div style={{
               background: S.header, borderTop: `1px solid ${S.headerBorder}`,
-              padding: "10px 16px 12px", flexShrink: 0, zIndex: 10,
+              padding: "10px 16px 14px", flexShrink: 0, zIndex: 10,
             }}>
-              {/* Persona + Language + Export row above textarea */}
+
+              {/* MODE + LANG row */}
               <div style={{
                 maxWidth: 720, margin: "0 auto 8px",
-                display: "flex", gap: 6, alignItems: "center", overflowX: "auto",
+                display: "flex", alignItems: "center", gap: 6,
               }}>
-                {PERSONAS.map(p => (
-                  <button key={p.id} className="mode-pill"
-                    onClick={() => handleModeClick(p.id)}
-                    disabled={isBusy}
+                <span style={{
+                  fontSize: 9, color: C.muted, letterSpacing: 3,
+                  textTransform: "uppercase", fontWeight: 700, flexShrink: 0,
+                }}>Mode</span>
+
+                {/* Scrollable persona pills with fade-out right edge */}
+                <div style={{ position: "relative", flex: 1, overflow: "hidden" }}>
+                  <div style={{
+                    position: "absolute", right: 0, top: 0, bottom: 0, width: 32,
+                    zIndex: 2, pointerEvents: "none",
+                    background: `linear-gradient(to right, transparent, ${S.header})`,
+                  }} />
+                  <div style={{ display: "flex", gap: 4, overflowX: "auto", flexWrap: "nowrap",
+                    scrollbarWidth: "none", msOverflowStyle: "none" }}>
+                    {PERSONAS.map(p => (
+                      <button key={p.id} className="mode-btn"
+                        onClick={() => handleModeClick(p.id)}
+                        disabled={isBusy}
+                        style={{
+                          flexShrink: 0,
+                          background: persona === p.id ? C.dark : "transparent",
+                          border: `1px solid ${persona === p.id ? C.orange : S.pillBorder}`,
+                          borderRadius: 8, padding: "5px 9px",
+                          color: persona === p.id ? C.gold : C.textMid,
+                          cursor: isBusy ? "not-allowed" : "pointer",
+                          fontFamily: "'Montserrat', sans-serif",
+                          fontSize: 11, fontWeight: 600,
+                          display: "flex", alignItems: "center", gap: 4,
+                          transition: "all 0.15s",
+                          opacity: isBusy ? 0.5 : 1,
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        <Icon
+                          name={p.icon}
+                          size={11}
+                          color={persona === p.id ? C.gold : C.textMid}
+                        />
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* LANG label + select */}
+                <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+                  <span style={{
+                    fontSize: 9, color: C.muted, letterSpacing: 2,
+                    textTransform: "uppercase", fontWeight: 700,
+                  }}>Lang</span>
+                  <select value={language} onChange={e => setLanguage(e.target.value)}
+                    className="pill-select"
                     style={{
-                      background: persona === p.id ? C.dark : S.pillBg,
-                      border: `1px solid ${persona === p.id ? C.orange : S.pillBorder}`,
-                      borderRadius: 20, padding: "4px 11px", fontSize: 11,
-                      fontWeight: 700,
-                      color: persona === p.id ? C.orange : C.dark,
-                      cursor: isBusy ? "not-allowed" : "pointer",
-                      fontFamily: "'Montserrat', sans-serif",
-                      flexShrink: 0, whiteSpace: "nowrap",
-                      transition: "all 0.15s", opacity: isBusy ? 0.5 : 1,
-                    }}>{p.label}</button>
-                ))}
-                <select value={language} onChange={e => setLanguage(e.target.value)} className="pill-select"
-                  style={{
-                    background: S.pillBg, border: `1px solid ${S.pillBorder}`,
-                    borderRadius: 20, padding: "4px 10px", fontSize: 11,
-                    fontWeight: 600, color: C.dark, fontFamily: "'Montserrat', sans-serif", flexShrink: 0,
-                  }}>
-                  {LANGUAGES.map(l => <option key={l}>{l}</option>)}
-                </select>
-                <button
-                  disabled={atExportLimit}
-                  onClick={() => onExportPdf?.(messages, pdfName)}
-                  style={{
-                    background: "transparent", border: `1px solid ${S.pillBorder}`,
-                    borderRadius: 20, padding: "4px 12px", fontSize: 11,
-                    fontWeight: 600, color: atExportLimit ? C.muted : C.dark,
-                    cursor: atExportLimit ? "not-allowed" : "pointer",
-                    fontFamily: "'Montserrat', sans-serif", flexShrink: 0,
-                  }}>📤 Export</button>
+                      background: S.chatBg, border: `1px solid ${S.pillBorder}`,
+                      borderRadius: 7, padding: "4px 6px", fontSize: 11,
+                      color: C.dark, cursor: "pointer", outline: "none",
+                      maxWidth: 100, fontWeight: 500,
+                    }}>
+                    {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                </div>
               </div>
 
-              {/* Input row */}
-              <div style={{
+              {/* Unified input container — Free tier style */}
+              <div className="unified-input" style={{
                 maxWidth: 720, margin: "0 auto",
-                display: "flex", gap: 8, alignItems: "flex-end",
+                display: "flex", gap: 8, background: S.chatBg,
+                border: `1.5px solid ${S.inputBorder}`,
+                borderRadius: 12, padding: "6px 8px 6px 14px",
+                alignItems: "flex-end",
+                transition: "border-color 0.15s, box-shadow 0.15s",
               }}>
+                {/* PDF+ text button inside box */}
                 <button
+                  className="pdf-plus-btn"
                   onClick={() => !atPdfLimit && fileRef.current?.click()}
                   title={atPdfLimit ? "Daily PDF limit reached" : "Upload new PDF"}
                   style={{
-                    background: "none", border: `1px solid ${atPdfLimit ? "#FFCCCC" : S.inputBorder}`,
-                    borderRadius: 10, padding: "10px 12px",
-                    fontSize: 16, cursor: atPdfLimit ? "not-allowed" : "pointer",
-                    color: atPdfLimit ? "#FFAAAA" : C.textMid, flexShrink: 0,
-                  }}>📎</button>
+                    background: "transparent", border: "none",
+                    cursor: atPdfLimit ? "not-allowed" : "pointer",
+                    padding: 0, flexShrink: 0, marginBottom: 5,
+                    opacity: atPdfLimit ? 0.3 : 0.5,
+                    fontSize: 11, color: C.textMid,
+                    fontFamily: "'Montserrat', sans-serif", fontWeight: 700,
+                  }}
+                >PDF+</button>
 
-                <textarea className="chat-input" value={input}
+                <textarea
+                  className="chat-input"
+                  value={input}
                   onChange={e => setInput(e.target.value)}
-                  placeholder={atQuestionLimit ? "Question limit reached for today..." : "Ask anything about your documents..."}
+                  placeholder={
+                    atQuestionLimit
+                      ? "Question limit reached for today..."
+                      : `Ask in ${PERSONAS.find(p => p.id === persona)?.label ?? "Analyst"} mode...`
+                  }
                   disabled={atQuestionLimit}
-                  rows={1} style={{
-                    flex: 1, background: atQuestionLimit ? "#FAF8F5" : S.inputBg,
-                    border: `1.5px solid ${S.inputBorder}`,
-                    borderRadius: 12, padding: "10px 14px",
-                    fontSize: 13, fontFamily: "'Montserrat', sans-serif",
-                    color: C.dark, resize: "none", lineHeight: 1.5,
-                    transition: "border-color 0.15s, box-shadow 0.15s",
+                  rows={1}
+                  style={{
+                    flex: 1, background: "transparent", border: "none", outline: "none",
+                    fontSize: 14, color: C.dark, fontFamily: "'Montserrat', sans-serif",
+                    resize: "none", lineHeight: 1.6,
+                    paddingTop: 5, paddingBottom: 5, maxHeight: 90,
                   }}
                   onKeyDown={e => {
                     if (e.key === "Enter" && !e.shiftKey && !atQuestionLimit) {
                       e.preventDefault();
                       send(input);
                     }
-                  }} />
+                  }}
+                />
 
-                <button className="send-btn"
+                <button
+                  className="send-btn"
                   onClick={() => !atQuestionLimit && send(input)}
                   disabled={atQuestionLimit || !input.trim() || loading || streaming}
                   style={{
-                    background: input.trim() && !atQuestionLimit ? C.orange : S.inputBorder,
-                    border: "none", borderRadius: 10, padding: "10px 14px",
-                    fontSize: 16,
-                    cursor: input.trim() && !atQuestionLimit ? "pointer" : "default",
-                    color: input.trim() && !atQuestionLimit ? "#fff" : C.muted,
-                    flexShrink: 0, transition: "background 0.15s",
-                  }}>➤</button>
+                    background: input.trim() && !atQuestionLimit ? C.orange : C.muted,
+                    border: "none", borderRadius: 9, width: 36, height: 36,
+                    cursor: input.trim() && !atQuestionLimit ? "pointer" : "not-allowed",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 18, transition: "all 0.15s", flexShrink: 0,
+                    color: input.trim() && !atQuestionLimit ? C.dark : "#8B6A3A",
+                    fontWeight: "bold",
+                  }}>^</button>
               </div>
+
+              {/* Bottom hint row — Free tier style */}
               <div style={{
-                textAlign: "center", fontSize: 10, color: C.muted, marginTop: 6, fontWeight: 500,
+                maxWidth: 720, margin: "6px auto 0",
+                display: "flex", justifyContent: "space-between",
               }}>
-                AI responses may be inaccurate · Verify important information
+                <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1, fontWeight: 600 }}>
+                  Enter to send · Shift+Enter new line
+                </div>
+                <div style={{ fontSize: 9, color: C.orange, fontWeight: 700, letterSpacing: 1 }}>
+                  GEMINI 2.5 FLASH
+                </div>
               </div>
+
             </div>
           </div>
         )}
