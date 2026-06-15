@@ -224,6 +224,7 @@ export default function StarterLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeChat, setActiveChat]   = useState<number | null>(1);
   const [showChats, setShowChats]     = useState(true);
+  const [copied, setCopied]           = useState<number | null>(null);
   const fileRef   = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -601,19 +602,82 @@ export default function StarterLayout({
                       lineHeight: 1.5,
                     }}>{msg.text}</div>
                   ) : (
-                    <div style={{
-                      background: S.aiBubble, border: `1px solid ${S.aiBubbleBorder}`,
-                      borderRadius: "4px 18px 18px 18px",
-                      padding: "14px 18px", maxWidth: "88%", boxShadow: S.shadow,
-                    }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", maxWidth: "88%" }}>
                       <div style={{
-                        fontSize: 9, fontWeight: 700, color: C.orange,
-                        letterSpacing: 1.5, marginBottom: 10, textTransform: "uppercase",
-                      }}>PageWise</div>
-                      <div
-                        style={{ fontSize: 13, color: "#3D3530", lineHeight: 1.7 }}
-                        dangerouslySetInnerHTML={{ __html: fmt(msg.text) }}
-                      />
+                        background: S.aiBubble, border: `1px solid ${S.aiBubbleBorder}`,
+                        borderRadius: "4px 18px 18px 18px",
+                        padding: "14px 18px", width: "100%", boxShadow: S.shadow,
+                      }}>
+                        <div style={{
+                          fontSize: 9, fontWeight: 700, color: C.orange,
+                          letterSpacing: 1.5, marginBottom: 10, textTransform: "uppercase",
+                        }}>PageWise</div>
+                        <div
+                          style={{ fontSize: 13, color: "#3D3530", lineHeight: 1.7 }}
+                          dangerouslySetInnerHTML={{ __html: fmt(msg.text) }}
+                        />
+                      </div>
+                      {/* Copy + Export buttons below bubble */}
+                      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(msg.text);
+                            setCopied(i);
+                            setTimeout(() => setCopied(null), 1800);
+                          }}
+                          style={{
+                            background: copied === i ? C.orange : S.aiBubble,
+                            border: `1.5px solid ${C.orange}`,
+                            borderRadius: 7, cursor: "pointer", padding: "4px 10px",
+                            color: copied === i ? C.dark : C.orange,
+                            display: "flex", alignItems: "center", gap: 5,
+                            fontSize: 10, fontFamily: "'Montserrat', sans-serif", fontWeight: 700,
+                            transition: "all 0.15s",
+                          }}>
+                          {copied === i ? "✓ Copied!" : (
+                            <>
+                              <svg width={11} height={11} viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2"/>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                              </svg>
+                              Copy
+                            </>
+                          )}
+                        </button>
+                        <button
+                          disabled={atExportLimit}
+                          onClick={() => {
+                            if (atExportLimit) return;
+                            const questionText = messages[i - 1]?.text || "answer";
+                            const slug = questionText
+                              .toLowerCase()
+                              .replace(/[^a-z0-9 ]/g, "")
+                              .trim()
+                              .split(" ")
+                              .slice(0, 4)
+                              .join("-");
+                            onExportPdf?.(
+                              [
+                                ...(messages[i - 1]?.role === "user" ? [{ role: "user", text: messages[i - 1].text, ts: messages[i-1].ts }] : []),
+                                { role: "assistant", text: msg.text, ts: msg.ts },
+                              ],
+                              `pagewise-${slug}.pdf`,
+                            );
+                          }}
+                          style={{
+                            background: "transparent",
+                            border: `1.5px solid ${atExportLimit ? S.pillBorder : C.orange}`,
+                            borderRadius: 7, cursor: atExportLimit ? "not-allowed" : "pointer",
+                            padding: "4px 10px",
+                            color: atExportLimit ? C.muted : C.orange,
+                            display: "flex", alignItems: "center", gap: 5,
+                            fontSize: 10, fontFamily: "'Montserrat', sans-serif", fontWeight: 700,
+                            transition: "all 0.15s",
+                          }}>
+                          📄 Export PDF
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
