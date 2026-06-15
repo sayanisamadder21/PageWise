@@ -576,8 +576,9 @@ export default function StarterLayout({
             <div style={{
               flex: 1, overflowY: "auto", padding: "20px 16px",
               display: "flex", flexDirection: "column", gap: 16,
-              maxWidth: 720, width: "100%", margin: "0 auto", minHeight: 0,
+              width: "100%", minHeight: 0,
             }}>
+              <div style={{ maxWidth: 720, width: "100%", margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
               {messages.map((msg, i) => (
                 <div key={i} style={{
                   display: "flex",
@@ -721,6 +722,7 @@ export default function StarterLayout({
 
               {atQuestionLimit && <LimitMessage type="questions" />}
               <div ref={bottomRef} />
+              </div>{/* end inner centering div */}
             </div>
 
             {/* ── Input Bar — Free tier style ── */}
