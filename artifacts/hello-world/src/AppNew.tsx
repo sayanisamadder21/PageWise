@@ -553,11 +553,14 @@ export default function AppWrapper() {
 
         if (!chatId) {
           // First message — create the chat
+          const smartTitle = q.length <=60
+          ? q
+          : q.slice(0, 57) + "...";
           const chat = await createChat(
             session.user.id,
             pdfName,
             pdfText,
-            pdfName.replace(".pdf", "")
+            smartTitle
           );
           if (chat) {
             chatId = chat.id;
@@ -573,6 +576,7 @@ export default function AppWrapper() {
         }
       } catch (err: any) {
         if (err.message === "PDF_TOO_LARGE") {
+          setMessages(prev => [...prev, { role: "assistant", text: "⚠️ This PDF is too large to save in your account. You can still chat with it, but the conversation won't be saved to history. Upgrade to Pro for larger PDF support.", ts: Date.now() }]);
           setUpgradeModal({ visible: true });
         }
       }

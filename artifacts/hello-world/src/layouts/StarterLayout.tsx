@@ -624,7 +624,41 @@ export default function StarterLayout({
         {/* ── CHAT view ── */}
         {view === "chat" && (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
+            {/* Lost PDF context guard */}
+{!pdfText && (
+  <div style={{
+    flex: 1, display: "flex", alignItems: "center",
+    justifyContent: "center", padding: 32,
+  }}>
+    <div style={{
+      textAlign: "center", maxWidth: 320,
+      background: "#fff", borderRadius: 16,
+      border: `1px solid ${S.inputBorder}`,
+      padding: "32px 24px", boxShadow: S.shadow,
+    }}>
+      <div style={{ fontSize: 32, marginBottom: 12 }}>📄</div>
+      <div style={{
+        fontSize: 15, fontWeight: 700, color: C.dark,
+        marginBottom: 8, fontFamily: "'Playfair Display', Georgia, serif",
+      }}>PDF context not available</div>
+      <div style={{
+        fontSize: 12, color: C.textMid, lineHeight: 1.7, marginBottom: 20,
+      }}>
+        The original PDF for this chat isn't loaded.<br />
+        Re-upload it to continue asking questions.
+      </div>
+      <button onClick={() => fileRef.current?.click()} style={{
+        background: C.orange, border: "none", borderRadius: 50,
+        padding: "10px 28px", color: "#fff", fontSize: 13,
+        fontWeight: 700, cursor: "pointer",
+        fontFamily: "'Montserrat', sans-serif",
+      }}>📎 Re-upload PDF</button>
+    </div>
+  </div>
+)}
 
+            {pdfText && (
+            <>
             {/* Scrollable messages */}
             <div style={{
               flex: 1, overflowY: "auto", padding: "20px 16px",
@@ -917,8 +951,10 @@ export default function StarterLayout({
                 <div style={{ fontSize: 9, color: C.orange, fontWeight: 700, letterSpacing: 1 }}>
                   GEMINI 2.5 FLASH
                 </div>
-              </div>
+                </div>
             </div>
+            </>
+            )}
           </div>
         )}
       </div>
