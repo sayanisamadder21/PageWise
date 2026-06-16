@@ -602,7 +602,7 @@ export default function StarterLayout({
             {/* Scrollable messages */}
             <div style={{
               flex: 1, overflowY: "auto", padding: "20px 16px",
-              display: "flex", flexDirection: "column", gap: 16,
+              display: "flex", flexDirection: "column", justifyContent:"flex-start",gap: 16,
               width: "100%", minHeight: 0,
             }}>
               <div style={{ maxWidth: 720, width: "100%", margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
