@@ -79,6 +79,7 @@ interface StarterLayoutProps {
   chatList: Chat[];
   onOpenChat: (chatId: string) => void;
   currentChatId: string | null;
+  onDeleteChat: (chatId: string) => void;
 }
 
 const NAV_ITEMS = [
@@ -222,13 +223,14 @@ export default function StarterLayout({
   pdfName, pdfText, pdfMeta, messages, loading, streaming,
   input, setInput, persona, setPersona, language, setLanguage,
   handleFile, send, onLogout, onUpgrade, onNavigate, onReset, fmt,
-  onExportPdf, chatList, onOpenChat, currentChatId,
+  onExportPdf, chatList, onOpenChat, currentChatId, onDeleteChat
 }: StarterLayoutProps) {
   const [view, setView]               = useState<View>(pdfText ? "chat" : "home");
   const [activeNav, setActiveNav]     = useState("documents");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showChats, setShowChats]     = useState(true);
   const [copied, setCopied]           = useState<number | null>(null);
+  const [hoveredChatId, setHoveredChatId] = useState<string | null>(null);
   const fileRef   = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -437,25 +439,49 @@ export default function StarterLayout({
                 </div>
               ) : (
                 chatList.map(chat => (
-                  <div key={chat.id} className="chat-item"
-                    onClick={() => handleSelectChat(chat.id)}
-                    style={{
-                      padding: "8px 12px", borderRadius: 8, marginBottom: 2, cursor: "pointer",
-                      background: currentChatId === chat.id ? "rgba(255,140,0,0.08)" : "transparent",
-                      borderLeft: currentChatId === chat.id ? `2px solid ${S.sidebarActive}` : "2px solid transparent",
-                      transition: "background 0.15s",
-                    }}>
-                    <div style={{
-                      fontSize: 12, fontWeight: currentChatId === chat.id ? 700 : 500,
-                      color: currentChatId === chat.id ? S.sidebarActive : S.sidebarText,
-                      marginBottom: 2, whiteSpace: "nowrap",
-                      overflow: "hidden", textOverflow: "ellipsis",
-                    }}>{chat.title}</div>
-                    <div style={{ fontSize: 10, color: "#665E52" }}>
-                      {timeAgo(chat.last_accessed_at)}
-                    </div>
-                  </div>
-                ))
+  <div key={chat.id} className="chat-item"
+    onClick={() => handleSelectChat(chat.id)}
+    onMouseEnter={() => setHoveredChatId(chat.id)}
+    onMouseLeave={() => setHoveredChatId(null)}
+    style={{
+      padding: "8px 12px", borderRadius: 8, marginBottom: 2, cursor: "pointer",
+      background: currentChatId === chat.id ? "rgba(255,140,0,0.08)" : "transparent",
+      borderLeft: currentChatId === chat.id ? `2px solid ${S.sidebarActive}` : "2px solid transparent",
+      transition: "background 0.15s",
+      display: "flex", alignItems: "center", gap: 6,
+    }}>
+    {/* Title + time */}
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{
+        fontSize: 12, fontWeight: currentChatId === chat.id ? 700 : 500,
+        color: currentChatId === chat.id ? S.sidebarActive : S.sidebarText,
+        marginBottom: 2, whiteSpace: "nowrap",
+        overflow: "hidden", textOverflow: "ellipsis",
+      }}>{chat.title}</div>
+      <div style={{ fontSize: 10, color: "#665E52" }}>
+        {timeAgo(chat.last_accessed_at)}
+      </div>
+    </div>
+    {/* Delete button — only visible on hover */}
+    {hoveredChatId === chat.id && (
+      <button
+        onClick={e => {
+          e.stopPropagation(); // don't open the chat
+          onDeleteChat(chat.id);
+        }}
+        title="Delete chat"
+        style={{
+          background: "transparent", border: "none",
+          cursor: "pointer", padding: "2px 4px", flexShrink: 0,
+          color: "#CC4444", fontSize: 14, lineHeight: 1,
+          borderRadius: 4, transition: "background 0.15s",
+        }}
+        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(204,68,68,0.15)"}
+        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+      >✕</button>
+    )}
+  </div>
+))
               )}
 
               {/* Usage footer */}

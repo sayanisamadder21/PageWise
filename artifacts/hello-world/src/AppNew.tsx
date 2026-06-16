@@ -447,6 +447,17 @@ export default function AppWrapper() {
     });
   };
 
+  const handleDeleteChat = async (chatId: string) => {
+  const { deleteChat } = await import('./services/chatService');
+  await deleteChat(chatId, session.user.id);
+  setChatList(prev => prev.filter(c => c.id !== chatId));
+  if (currentChatId === chatId) {
+    setCurrentChatId(null);
+    reset();
+    // go back to home
+  }
+};
+
   // Word-by-word streaming reveal
   const revealWords = (fullText: string) => {
     const words = fullText.split(" ");
@@ -684,6 +695,7 @@ export default function AppWrapper() {
           chatList={chatList}
           onOpenChat={handleOpenChat}
           currentChatId={currentChatId}
+          onDeleteChat={handleDeleteChat}
         />
       ) : hasPDF ? (
         <ChatLayout
