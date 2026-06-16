@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { C, PERSONAS, LANGUAGES, ICON_PATHS } from "../AppNew";
 import { TierConfig } from "../config/tierConfig";
+import { Chat } from "../services/chatService";
 
 const S = {
   sidebar: "#1A1610",
@@ -74,6 +75,10 @@ interface StarterLayoutProps {
   onReset: () => void;
   fmt: (t: string) => string;
   onExportPdf?: (msgs: Message[], filename?: string) => void;
+  // ── Chat history ──
+  chatList: Chat[];
+  onOpenChat: (chatId: string) => void;
+  currentChatId: string | null;
 }
 
 const NAV_ITEMS = [
@@ -83,22 +88,22 @@ const NAV_ITEMS = [
   { id: "settings",  icon: "⚙️", label: "Settings"     },
 ];
 
-const MOCK_CHATS = [
-  { id: 1,  title: "Cell Biology Summary",    time: "2h ago"     },
-  { id: 2,  title: "Important Equations",      time: "Yesterday"  },
-  { id: 3,  title: "Blood Report Explanation", time: "2 days ago" },
-  { id: 4,  title: "Case Law Notes",           time: "3 days ago" },
-  { id: 5,  title: "Physics Revision",         time: "4 days ago" },
-  { id: 6,  title: "Contract Analysis",        time: "5 days ago" },
-  { id: 7,  title: "Research Paper Summary",   time: "6 days ago" },
-  { id: 8,  title: "Medical Report Review",    time: "7 days ago" },
-  { id: 9,  title: "Study Notes — Chapter 4",  time: "8 days ago" },
-  { id: 10, title: "Exam Prep Questions",      time: "9 days ago" },
-];
-
 type View = "home" | "chat" | "settings";
 
-// ── SVG Icon (same as Free tier) ──
+// ── Relative time helper ──
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins  = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days  = Math.floor(diff / 86400000);
+  if (mins < 1)   return "Just now";
+  if (mins < 60)  return `${mins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days === 1) return "Yesterday";
+  return `${days} days ago`;
+}
+
+// ── SVG Icon ──
 function Icon({ name, size = 11, color = "currentColor" }: { name: string; size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
@@ -132,31 +137,31 @@ function SettingsView({ onNavigate, onLogout, onUpgrade, tier }: {
     {
       title: "Account",
       items: [
-        { label: "Plan", value: tier.name, type: "info" },
-        { label: "Storage", value: "Supabase", type: "info" },
+        { label: "Plan",         value: tier.name,                                                    type: "info"   },
+        { label: "Storage",      value: "Supabase",                                                   type: "info"   },
         { label: "Chat History", value: `${tier.chatHistoryLimit} chats · ${tier.chatHistoryRetentionDays} days`, type: "info" },
       ],
     },
     {
       title: "Billing",
       items: [
-        { label: "Current Plan", value: `${tier.name} — ₹${tier.monthlyPriceINR}/mo`, type: "info" },
-        { label: "Status", value: "Payments launching soon", type: "info" },
-        { label: "Upgrade to Pro", value: "", type: "action", action: onUpgrade, color: C.orange },
+        { label: "Current Plan",    value: `${tier.name} — ₹${tier.monthlyPriceINR}/mo`, type: "info"   },
+        { label: "Status",          value: "Payments launching soon",                     type: "info"   },
+        { label: "Upgrade to Pro",  value: "",                                            type: "action", action: onUpgrade, color: C.orange },
       ],
     },
     {
       title: "Legal",
       items: [
-        { label: "Terms & Conditions", value: "", type: "action", action: () => onNavigate?.("terms") },
-        { label: "Privacy Policy",     value: "", type: "action", action: () => onNavigate?.("privacy") },
+        { label: "Terms & Conditions", value: "", type: "action", action: () => onNavigate?.("terms")    },
+        { label: "Privacy Policy",     value: "", type: "action", action: () => onNavigate?.("privacy")  },
       ],
     },
     {
       title: "Account Actions",
       items: [
-        { label: "Log out",        value: "", type: "action", action: onLogout, color: C.textMid },
-        { label: "Delete Account", value: "", type: "action", action: () => {}, color: "#CC0000"  },
+        { label: "Log out",        value: "", type: "action", action: onLogout,  color: C.textMid  },
+        { label: "Delete Account", value: "", type: "action", action: () => {},  color: "#CC0000"  },
       ],
     },
   ];
@@ -217,12 +222,11 @@ export default function StarterLayout({
   pdfName, pdfText, pdfMeta, messages, loading, streaming,
   input, setInput, persona, setPersona, language, setLanguage,
   handleFile, send, onLogout, onUpgrade, onNavigate, onReset, fmt,
-  onExportPdf,
+  onExportPdf, chatList, onOpenChat, currentChatId,
 }: StarterLayoutProps) {
   const [view, setView]               = useState<View>(pdfText ? "chat" : "home");
   const [activeNav, setActiveNav]     = useState("documents");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeChat, setActiveChat]   = useState<number | null>(1);
   const [showChats, setShowChats]     = useState(true);
   const [copied, setCopied]           = useState<number | null>(null);
   const fileRef   = useRef<HTMLInputElement>(null);
@@ -248,12 +252,11 @@ export default function StarterLayout({
   const handleNewChat = () => {
     onReset();
     setView("home");
-    setActiveChat(null);
     if (isMobile) setSidebarOpen(false);
   };
 
-  const handleSelectChat = (id: number) => {
-    setActiveChat(id);
+  const handleSelectChat = (chatId: string) => {
+    onOpenChat(chatId);
     setView("chat");
     if (isMobile) setSidebarOpen(false);
   };
@@ -305,6 +308,9 @@ export default function StarterLayout({
   const atQuestionLimit = tier.dailyQuestions   !== -1 && questionsUsedToday >= tier.dailyQuestions;
   const atExportLimit   = tier.maxExportsPerDay !== -1 && exportsUsedToday   >= tier.maxExportsPerDay;
   const isBusy          = loading || streaming;
+
+  // Recent chats — max 3 for home screen preview
+  const recentChats = chatList.slice(0, 3);
 
   return (
     <div style={{
@@ -394,7 +400,10 @@ export default function StarterLayout({
         <nav style={{ padding: "8px 10px", flex: 1, overflowY: "auto" }}>
           {NAV_ITEMS.map(item => (
             <div key={item.id} className="nav-item"
-              onClick={() => { if (item.id === "chats") { setShowChats(prev => !prev); setActiveNav("chats"); } else { handleNavClick(item.id); } }}
+              onClick={() => {
+                if (item.id === "chats") { setShowChats(prev => !prev); setActiveNav("chats"); }
+                else { handleNavClick(item.id); }
+              }}
               style={{
                 display: "flex", alignItems: "center", gap: 10,
                 padding: "9px 12px", marginBottom: 2,
@@ -406,43 +415,56 @@ export default function StarterLayout({
                 fontSize: 13, fontWeight: activeNav === item.id ? 700 : 500,
                 color: activeNav === item.id ? S.sidebarActive : S.sidebarText,
               }}>{item.label}</span>
-              {item.id === "chats" && (
+              {item.id === "chats" && chatList.length > 0 && (
                 <span style={{
                   marginLeft: "auto", fontSize: 10, fontWeight: 700,
                   background: "rgba(255,140,0,0.15)", color: S.sidebarActive,
                   padding: "1px 6px", borderRadius: 10,
-                }}>10</span>
+                }}>{chatList.length}</span>
               )}
             </div>
           ))}
 
-          {/* Recent Chats */}
+          {/* ── Real Chat History ── */}
           {showChats && (
             <div style={{ marginTop: 6 }}>
-              {MOCK_CHATS.map(chat => (
-                <div key={chat.id} className="chat-item"
-                  onClick={() => handleSelectChat(chat.id)}
-                  style={{
-                    padding: "8px 12px", borderRadius: 8, marginBottom: 2, cursor: "pointer",
-                    background: activeChat === chat.id ? "rgba(255,140,0,0.08)" : "transparent",
-                    borderLeft: activeChat === chat.id ? `2px solid ${S.sidebarActive}` : "2px solid transparent",
-                    transition: "background 0.15s",
-                  }}>
-                  <div style={{
-                    fontSize: 12, fontWeight: activeChat === chat.id ? 700 : 500,
-                    color: activeChat === chat.id ? S.sidebarActive : S.sidebarText,
-                    marginBottom: 2, whiteSpace: "nowrap",
-                    overflow: "hidden", textOverflow: "ellipsis",
-                  }}>{chat.title}</div>
-                  <div style={{ fontSize: 10, color: "#665E52" }}>{chat.time}</div>
+              {chatList.length === 0 ? (
+                <div style={{
+                  padding: "12px 12px", fontSize: 11,
+                  color: "#665E52", fontStyle: "italic", lineHeight: 1.6,
+                }}>
+                  No chats yet. Upload a PDF and start asking questions!
                 </div>
-              ))}
+              ) : (
+                chatList.map(chat => (
+                  <div key={chat.id} className="chat-item"
+                    onClick={() => handleSelectChat(chat.id)}
+                    style={{
+                      padding: "8px 12px", borderRadius: 8, marginBottom: 2, cursor: "pointer",
+                      background: currentChatId === chat.id ? "rgba(255,140,0,0.08)" : "transparent",
+                      borderLeft: currentChatId === chat.id ? `2px solid ${S.sidebarActive}` : "2px solid transparent",
+                      transition: "background 0.15s",
+                    }}>
+                    <div style={{
+                      fontSize: 12, fontWeight: currentChatId === chat.id ? 700 : 500,
+                      color: currentChatId === chat.id ? S.sidebarActive : S.sidebarText,
+                      marginBottom: 2, whiteSpace: "nowrap",
+                      overflow: "hidden", textOverflow: "ellipsis",
+                    }}>{chat.title}</div>
+                    <div style={{ fontSize: 10, color: "#665E52" }}>
+                      {timeAgo(chat.last_accessed_at)}
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {/* Usage footer */}
               <div style={{
                 margin: "10px 4px 0", padding: "8px 10px",
                 background: "rgba(255,140,0,0.06)", border: "1px solid rgba(255,140,0,0.12)",
                 borderRadius: 8, fontSize: 10, color: "#998877", lineHeight: 1.6,
               }}>
-                10 chats · 14-day retention<br />
+                {chatList.length} / 10 chats · 14-day retention<br />
                 <span onClick={onUpgrade} style={{ color: S.sidebarActive, fontWeight: 700, cursor: "pointer" }}>
                   Upgrade to Pro for unlimited →
                 </span>
@@ -535,28 +557,33 @@ export default function StarterLayout({
                 </div>
               )}
 
-              <div style={{ marginTop: 32 }}>
-                <div style={{
-                  fontSize: 10, fontWeight: 700, color: C.muted,
-                  letterSpacing: 1.5, marginBottom: 12, textTransform: "uppercase",
-                }}>Or continue a recent chat</div>
-                {MOCK_CHATS.slice(0, 3).map(chat => (
-                  <div key={chat.id} onClick={() => handleSelectChat(chat.id)}
-                    style={{
-                      padding: "11px 16px", borderRadius: 12, marginBottom: 8,
-                      background: "#fff", border: `1px solid ${S.inputBorder}`,
-                      cursor: "pointer", textAlign: "left",
-                      display: "flex", justifyContent: "space-between", alignItems: "center",
-                      boxShadow: S.shadow,
-                    }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = C.orange}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = S.inputBorder}
-                  >
-                    <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{chat.title}</span>
-                    <span style={{ fontSize: 10, color: C.muted, marginLeft: 12 }}>{chat.time}</span>
-                  </div>
-                ))}
-              </div>
+              {/* ── Recent chats on home screen ── */}
+              {recentChats.length > 0 && (
+                <div style={{ marginTop: 32 }}>
+                  <div style={{
+                    fontSize: 10, fontWeight: 700, color: C.muted,
+                    letterSpacing: 1.5, marginBottom: 12, textTransform: "uppercase",
+                  }}>Continue a recent chat</div>
+                  {recentChats.map(chat => (
+                    <div key={chat.id} onClick={() => handleSelectChat(chat.id)}
+                      style={{
+                        padding: "11px 16px", borderRadius: 12, marginBottom: 8,
+                        background: "#fff", border: `1px solid ${S.inputBorder}`,
+                        cursor: "pointer", textAlign: "left",
+                        display: "flex", justifyContent: "space-between", alignItems: "center",
+                        boxShadow: S.shadow,
+                      }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = C.orange}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = S.inputBorder}
+                    >
+                      <span style={{ fontSize: 13, fontWeight: 600, color: C.dark }}>{chat.title}</span>
+                      <span style={{ fontSize: 10, color: C.muted, marginLeft: 12, flexShrink: 0 }}>
+                        {timeAgo(chat.last_accessed_at)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -579,158 +606,157 @@ export default function StarterLayout({
               width: "100%", minHeight: 0,
             }}>
               <div style={{ maxWidth: 720, width: "100%", margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
-              {messages.map((msg, i) => (
-                <div key={i} style={{
-                  display: "flex",
-                  justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
-                  animation: "fadeIn 0.2s ease",
-                }}>
-                  {msg.isSystem ? (
-                    <div style={{
-                      width: "100%", textAlign: "center",
-                      fontSize: 11, color: C.textMid, fontWeight: 500, padding: "6px 0",
-                    }}>{msg.text}</div>
-                  ) : msg.isLimit ? (
-                    <div style={{ maxWidth: "88%", width: "100%" }}>
-                      <LimitMessage type={msg.text.includes("PDF") ? "pdfs" : msg.text.includes("export") ? "exports" : "questions"} />
-                    </div>
-                  ) : msg.role === "user" ? (
-                    <div style={{
-                      background: S.userBubble, color: S.userBubbleText,
-                      borderRadius: "18px 18px 4px 18px",
-                      padding: "11px 16px", fontSize: 13, fontWeight: 600,
-                      maxWidth: "78%", boxShadow: "0 2px 8px rgba(255,140,0,0.20)",
-                      lineHeight: 1.5,
-                    }}>{msg.text}</div>
-                  ) : (
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", maxWidth: "88%" }}>
-                      <div style={{
-                        background: S.aiBubble, border: `1px solid ${S.aiBubbleBorder}`,
-                        borderRadius: "4px 18px 18px 18px",
-                        padding: "14px 18px", width: "100%", boxShadow: S.shadow,
-                      }}>
-                        <div style={{
-                          fontSize: 9, fontWeight: 700, color: C.orange,
-                          letterSpacing: 1.5, marginBottom: 10, textTransform: "uppercase",
-                        }}>PageWise</div>
-                        <div
-                          style={{ fontSize: 13, color: "#3D3530", lineHeight: 1.7 }}
-                          dangerouslySetInnerHTML={{ __html: fmt(msg.text) }}
-                        />
-                      </div>
-                      {/* Copy + Export buttons below bubble */}
-                      <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(msg.text);
-                            setCopied(i);
-                            setTimeout(() => setCopied(null), 1800);
-                          }}
-                          style={{
-                            background: copied === i ? C.orange : S.aiBubble,
-                            border: `1.5px solid ${C.orange}`,
-                            borderRadius: 7, cursor: "pointer", padding: "4px 10px",
-                            color: copied === i ? C.dark : C.orange,
-                            display: "flex", alignItems: "center", gap: 5,
-                            fontSize: 10, fontFamily: "'Montserrat', sans-serif", fontWeight: 700,
-                            transition: "all 0.15s",
-                          }}>
-                          {copied === i ? "✓ Copied!" : (
-                            <>
-                              <svg width={11} height={11} viewBox="0 0 24 24" fill="none"
-                                stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                                <rect x="9" y="9" width="13" height="13" rx="2"/>
-                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                              </svg>
-                              Copy
-                            </>
-                          )}
-                        </button>
-                        <button
-                          disabled={atExportLimit}
-                          onClick={() => {
-                            if (atExportLimit) return;
-                            const questionText = messages[i - 1]?.text || "answer";
-                            const slug = questionText
-                              .toLowerCase()
-                              .replace(/[^a-z0-9 ]/g, "")
-                              .trim()
-                              .split(" ")
-                              .slice(0, 4)
-                              .join("-");
-                            onExportPdf?.(
-                              [
-                                ...(messages[i - 1]?.role === "user" ? [{ role: "user", text: messages[i - 1].text, ts: messages[i-1].ts }] : []),
-                                { role: "assistant", text: msg.text, ts: msg.ts },
-                              ],
-                              `pagewise-${slug}.pdf`,
-                            );
-                          }}
-                          style={{
-                            background: "transparent",
-                            border: `1.5px solid ${atExportLimit ? S.pillBorder : C.orange}`,
-                            borderRadius: 7, cursor: atExportLimit ? "not-allowed" : "pointer",
-                            padding: "4px 10px",
-                            color: atExportLimit ? C.muted : C.orange,
-                            display: "flex", alignItems: "center", gap: 5,
-                            fontSize: 10, fontFamily: "'Montserrat', sans-serif", fontWeight: 700,
-                            transition: "all 0.15s",
-                          }}>
-                          📄 Export PDF
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              {loading && (
-                <div style={{ display: "flex", justifyContent: "flex-start" }}>
-                  <div style={{
-                    background: S.aiBubble, border: `1px solid ${S.aiBubbleBorder}`,
-                    borderRadius: "4px 18px 18px 18px",
-                    padding: "14px 18px", boxShadow: S.shadow,
+                {messages.map((msg, i) => (
+                  <div key={i} style={{
+                    display: "flex",
+                    justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
+                    animation: "fadeIn 0.2s ease",
                   }}>
-                    <Dots />
+                    {msg.isSystem ? (
+                      <div style={{
+                        width: "100%", textAlign: "center",
+                        fontSize: 11, color: C.textMid, fontWeight: 500, padding: "6px 0",
+                      }}>{msg.text}</div>
+                    ) : msg.isLimit ? (
+                      <div style={{ maxWidth: "88%", width: "100%" }}>
+                        <LimitMessage type={msg.text.includes("PDF") ? "pdfs" : msg.text.includes("export") ? "exports" : "questions"} />
+                      </div>
+                    ) : msg.role === "user" ? (
+                      <div style={{
+                        background: S.userBubble, color: S.userBubbleText,
+                        borderRadius: "18px 18px 4px 18px",
+                        padding: "11px 16px", fontSize: 13, fontWeight: 600,
+                        maxWidth: "78%", boxShadow: "0 2px 8px rgba(255,140,0,0.20)",
+                        lineHeight: 1.5,
+                      }}>{msg.text}</div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", maxWidth: "88%" }}>
+                        <div style={{
+                          background: S.aiBubble, border: `1px solid ${S.aiBubbleBorder}`,
+                          borderRadius: "4px 18px 18px 18px",
+                          padding: "14px 18px", width: "100%", boxShadow: S.shadow,
+                        }}>
+                          <div style={{
+                            fontSize: 9, fontWeight: 700, color: C.orange,
+                            letterSpacing: 1.5, marginBottom: 10, textTransform: "uppercase",
+                          }}>PageWise</div>
+                          <div
+                            style={{ fontSize: 13, color: "#3D3530", lineHeight: 1.7 }}
+                            dangerouslySetInnerHTML={{ __html: fmt(msg.text) }}
+                          />
+                        </div>
+                        {/* Copy + Export buttons */}
+                        <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(msg.text);
+                              setCopied(i);
+                              setTimeout(() => setCopied(null), 1800);
+                            }}
+                            style={{
+                              background: copied === i ? C.orange : S.aiBubble,
+                              border: `1.5px solid ${C.orange}`,
+                              borderRadius: 7, cursor: "pointer", padding: "4px 10px",
+                              color: copied === i ? C.dark : C.orange,
+                              display: "flex", alignItems: "center", gap: 5,
+                              fontSize: 10, fontFamily: "'Montserrat', sans-serif", fontWeight: 700,
+                              transition: "all 0.15s",
+                            }}>
+                            {copied === i ? "✓ Copied!" : (
+                              <>
+                                <svg width={11} height={11} viewBox="0 0 24 24" fill="none"
+                                  stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                                  <rect x="9" y="9" width="13" height="13" rx="2"/>
+                                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                </svg>
+                                Copy
+                              </>
+                            )}
+                          </button>
+                          <button
+                            disabled={atExportLimit}
+                            onClick={() => {
+                              if (atExportLimit) return;
+                              const questionText = messages[i - 1]?.text || "answer";
+                              const slug = questionText
+                                .toLowerCase()
+                                .replace(/[^a-z0-9 ]/g, "")
+                                .trim()
+                                .split(" ")
+                                .slice(0, 4)
+                                .join("-");
+                              onExportPdf?.(
+                                [
+                                  ...(messages[i - 1]?.role === "user" ? [{ role: "user", text: messages[i - 1].text, ts: messages[i-1].ts }] : []),
+                                  { role: "assistant", text: msg.text, ts: msg.ts },
+                                ],
+                                `pagewise-${slug}.pdf`,
+                              );
+                            }}
+                            style={{
+                              background: "transparent",
+                              border: `1.5px solid ${atExportLimit ? S.pillBorder : C.orange}`,
+                              borderRadius: 7, cursor: atExportLimit ? "not-allowed" : "pointer",
+                              padding: "4px 10px",
+                              color: atExportLimit ? C.muted : C.orange,
+                              display: "flex", alignItems: "center", gap: 5,
+                              fontSize: 10, fontFamily: "'Montserrat', sans-serif", fontWeight: 700,
+                              transition: "all 0.15s",
+                            }}>
+                            📄 Export PDF
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                ))}
 
-              {messages.length <= 1 && !loading && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div style={{
-                    fontSize: 10, fontWeight: 700, color: C.muted,
-                    letterSpacing: 1.5, textTransform: "uppercase",
-                  }}>Try asking</div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {SUGGESTIONS.map((q, i) => (
-                      <button key={i} className="suggestion-pill"
-                        onClick={() => !isBusy && send(q)}
-                        disabled={isBusy}
-                        style={{
-                          background: "#fff", border: `1px solid ${S.inputBorder}`,
-                          borderRadius: 20, padding: "7px 14px",
-                          fontSize: 12, color: C.textMid,
-                          cursor: isBusy ? "not-allowed" : "pointer",
-                          fontFamily: "'Montserrat', sans-serif", fontWeight: 500,
-                          transition: "all 0.15s", opacity: isBusy ? 0.5 : 1,
-                        }}>{q}</button>
-                    ))}
+                {loading && (
+                  <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                    <div style={{
+                      background: S.aiBubble, border: `1px solid ${S.aiBubbleBorder}`,
+                      borderRadius: "4px 18px 18px 18px",
+                      padding: "14px 18px", boxShadow: S.shadow,
+                    }}>
+                      <Dots />
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {atQuestionLimit && <LimitMessage type="questions" />}
-              <div ref={bottomRef} />
-              </div>{/* end inner centering div */}
+                {messages.length <= 1 && !loading && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <div style={{
+                      fontSize: 10, fontWeight: 700, color: C.muted,
+                      letterSpacing: 1.5, textTransform: "uppercase",
+                    }}>Try asking</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {SUGGESTIONS.map((q, i) => (
+                        <button key={i} className="suggestion-pill"
+                          onClick={() => !isBusy && send(q)}
+                          disabled={isBusy}
+                          style={{
+                            background: "#fff", border: `1px solid ${S.inputBorder}`,
+                            borderRadius: 20, padding: "7px 14px",
+                            fontSize: 12, color: C.textMid,
+                            cursor: isBusy ? "not-allowed" : "pointer",
+                            fontFamily: "'Montserrat', sans-serif", fontWeight: 500,
+                            transition: "all 0.15s", opacity: isBusy ? 0.5 : 1,
+                          }}>{q}</button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {atQuestionLimit && <LimitMessage type="questions" />}
+                <div ref={bottomRef} />
+              </div>
             </div>
 
-            {/* ── Input Bar — Free tier style ── */}
+            {/* ── Input Bar ── */}
             <div style={{
               background: S.header, borderTop: `1px solid ${S.headerBorder}`,
               padding: "10px 16px 14px", flexShrink: 0, zIndex: 10,
             }}>
-
               {/* MODE + LANG row */}
               <div style={{
                 maxWidth: 720, margin: "0 auto 8px",
@@ -741,7 +767,6 @@ export default function StarterLayout({
                   textTransform: "uppercase", fontWeight: 700, flexShrink: 0,
                 }}>Mode</span>
 
-                {/* Scrollable persona pills with fade-out right edge */}
                 <div style={{ position: "relative", flex: 1, overflow: "hidden" }}>
                   <div style={{
                     position: "absolute", right: 0, top: 0, bottom: 0, width: 32,
@@ -767,20 +792,14 @@ export default function StarterLayout({
                           transition: "all 0.15s",
                           opacity: isBusy ? 0.5 : 1,
                           whiteSpace: "nowrap",
-                        }}
-                      >
-                        <Icon
-                          name={p.icon}
-                          size={11}
-                          color={persona === p.id ? C.gold : C.textMid}
-                        />
+                        }}>
+                        <Icon name={p.icon} size={11} color={persona === p.id ? C.gold : C.textMid} />
                         {p.label}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* LANG label + select */}
                 <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
                   <span style={{
                     fontSize: 9, color: C.muted, letterSpacing: 2,
@@ -799,7 +818,7 @@ export default function StarterLayout({
                 </div>
               </div>
 
-              {/* Unified input container — Free tier style */}
+              {/* Unified input */}
               <div className="unified-input" style={{
                 maxWidth: 720, margin: "0 auto",
                 display: "flex", gap: 8, background: S.chatBg,
@@ -808,7 +827,6 @@ export default function StarterLayout({
                 alignItems: "flex-end",
                 transition: "border-color 0.15s, box-shadow 0.15s",
               }}>
-                {/* PDF+ text button inside box */}
                 <button
                   className="pdf-plus-btn"
                   onClick={() => !atPdfLimit && fileRef.current?.click()}
@@ -820,8 +838,7 @@ export default function StarterLayout({
                     opacity: atPdfLimit ? 0.3 : 0.5,
                     fontSize: 11, color: C.textMid,
                     fontFamily: "'Montserrat', sans-serif", fontWeight: 700,
-                  }}
-                >PDF+</button>
+                  }}>PDF+</button>
 
                 <textarea
                   className="chat-input"
@@ -863,7 +880,7 @@ export default function StarterLayout({
                   }}>^</button>
               </div>
 
-              {/* Bottom hint row — Free tier style */}
+              {/* Bottom hint row */}
               <div style={{
                 maxWidth: 720, margin: "6px auto 0",
                 display: "flex", justifyContent: "space-between",
@@ -875,7 +892,6 @@ export default function StarterLayout({
                   GEMINI 2.5 FLASH
                 </div>
               </div>
-
             </div>
           </div>
         )}

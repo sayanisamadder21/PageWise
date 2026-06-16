@@ -11,6 +11,7 @@ import { getUsageToday, incrementUsage } from "./utils/usageTracking";
 import UpgradeModal from "./components/UpgradeModal";
 import StarterLayout from "./layouts/StarterLayout";
 import { Tier, TierConfig } from "./config/tierConfig";
+import { createChat, loadChats, openChat, saveMessage, Chat } from "./services/chatService";
 
 // ── Splash Screen ──────────────────────────────────────────
 function SplashScreen({ visible }: { visible: boolean }) {
@@ -68,11 +69,10 @@ export const PERSONAS = [
   { id: "teacher",   label: "Teacher",  icon: "grad",  desc: "Step-by-step explanations",  sys: "You are a patient and thorough teacher. Don't just summarize — explain the document step by step, like you're teaching a student encountering this topic for the first time. Use examples where helpful." },
   { id: "lawyer",    label: "Lawyer",   icon: "law",   desc: "Risks, rights & clauses",    sys: "You are a careful legal reviewer. Identify obligations, rights, risks, liabilities, deadlines, and vague clauses. Use plain language. Remind user to consult a licensed lawyer." },
   { id: "summarizer",label: "TL;DR",   icon: "bolt",  desc: "5 bullets, nothing extra",   sys: "You are brutally concise. Give exactly 5 bullet points — the most important things from this document. Nothing extra." },
-  { id: "doctor",    label: "Medical",  icon: "cross", desc: "Plain-language medical info", sys: "You are a patient-friendly medical explainer. Translate jargon into simple language. Summarize diagnosis, medications, treatment clearly. Always advise verifying with their doctor." }, { id: "insights", label: "Key Insights", icon: "star", desc: "Extract key insights", sys: "You are an expert analyst who extracts the most important, actionable insights from documents. For every document, identify the top insights that matter most, explain why each insight is significant, and present them in a clear, numbered format. Be specific, not generic." },
-
-{ id: "studynotes", label: "Study Notes", icon: "book", desc: "Structured study notes", sys: "You are an expert tutor who creates comprehensive, well-structured study notes from documents. Organize information with clear headings, bullet points, key terms highlighted, and important concepts explained simply. Make notes easy to review and memorize." },
-
-{ id: "examgen", label: "Exam Generator", icon: "pencil", desc: "Generate exam questions", sys: "You are an expert educator who creates high-quality exam questions from documents. Generate a mix of multiple choice, short answer, and essay questions with varying difficulty levels. Include answer hints for each question. Focus on testing deep understanding, not just memorization." },
+  { id: "doctor",    label: "Medical",  icon: "cross", desc: "Plain-language medical info", sys: "You are a patient-friendly medical explainer. Translate jargon into simple language. Summarize diagnosis, medications, treatment clearly. Always advise verifying with their doctor." },
+  { id: "insights",  label: "Key Insights", icon: "star", desc: "Extract key insights", sys: "You are an expert analyst who extracts the most important, actionable insights from documents. For every document, identify the top insights that matter most, explain why each insight is significant, and present them in a clear, numbered format. Be specific, not generic." },
+  { id: "studynotes", label: "Study Notes", icon: "book", desc: "Structured study notes", sys: "You are an expert tutor who creates comprehensive, well-structured study notes from documents. Organize information with clear headings, bullet points, key terms highlighted, and important concepts explained simply. Make notes easy to review and memorize." },
+  { id: "examgen",   label: "Exam Generator", icon: "pencil", desc: "Generate exam questions", sys: "You are an expert educator who creates high-quality exam questions from documents. Generate a mix of multiple choice, short answer, and essay questions with varying difficulty levels. Include answer hints for each question. Focus on testing deep understanding, not just memorization." },
 ];
 
 export const ICONS: Record<string, string> = {
@@ -82,8 +82,8 @@ export const ICONS: Record<string, string> = {
   bolt:  "M13 2L3 14h9l-1 8 10-12h-9l1-8z",
   cross: "M12 5v14M5 12h14",
   star:  "M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14l-5-4.87 6.91-1L12 2z",
-  book:   "M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5V5a2.5 2.5 0 012.5-2.5H20M4 19.5c1.667-1.667 4.333-1.667 6.5 0M20 22V5a2.5 2.5 0 012.5-2.5H22M20 22c1.667-1.667 4.333-1.667 6.5 0",
-  pencil: "M12 20h9M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z",
+  book:  "M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5V5a2.5 2.5 0 012.5-2.5H20M4 19.5c1.667-1.667 4.333-1.667 6.5 0M20 22V5a2.5 2.5 0 012.5-2.5H22M20 22c1.667-1.667 4.333-1.667 6.5 0",
+  pencil:"M12 20h9M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z",
 };
 export const ICON_PATHS = ICONS;
 
@@ -149,6 +149,11 @@ export default function AppWrapper() {
   const [splash, setSplash]       = useState(true);
   const [streaming, setStreaming] = useState(false);
 
+  // ── Chat history state ─────────────────────────────────
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [chatList, setChatList]           = useState<Chat[]>([]);
+  const [chatInitialized, setChatInitialized] = useState(false);
+
   const fileRef     = useRef<HTMLInputElement>(null);
   const bottomRef   = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -158,167 +163,125 @@ export default function AppWrapper() {
   const [upgradeModal, setUpgradeModal] = useState<{ visible: boolean; reason?: "pdfs" | "questions" | "exports" }>({ visible: false });
 
   const exportPdfFromMessages = async (
-  msgs: { role: string; text: string; ts?: number }[],
-  filename?: string
-) => {
-  if (!msgs || msgs.length === 0) return;
+    msgs: { role: string; text: string; ts?: number }[],
+    filename?: string
+  ) => {
+    if (!msgs || msgs.length === 0) return;
 
-  if (usage.exports >= activeTier.maxExportsPerDay) {
-    setUpgradeModal({ visible: true, reason: "exports" });
-    return;
-  }
+    if (usage.exports >= activeTier.maxExportsPerDay) {
+      setUpgradeModal({ visible: true, reason: "exports" });
+      return;
+    }
 
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
 
-  printWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>${filename || 'pagewise-export'}</title>
-        <style>
-          { box-sizing: border-box; margin: 0; padding: 0; }
-          body {
-           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-           padding: 48px 56px;
-           color: #1A150F;
-           background: #fff;
-           font-size: 13px;
-           line-height: 1.8;
-          }
-
-          body {
-            font-family: 'Noto Sans', sans-serif;
-            padding: 48px 56px;
-            color: #1A150F;
-            background: #fff;
-            font-size: 13px;
-            line-height: 1.8;
-          }
-
-          .watermark {
-            position: fixed;
-            bottom: 24px;
-            right: 32px;
-            opacity: 0.18;
-            z-index: 0;
-          }
-
-          .watermark img {
-            height: 36px;
-            width: auto;
-          }
-
-          .header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 32px;
-            padding-bottom: 16px;
-            border-bottom: 2px solid #FF8A00;
-          }
-
-          .header img {
-            height: 32px;
-            width: auto;
-          }
-
-          .header-meta {
-            font-size: 11px;
-            color: #6B4F2A;
-          }
-
-          .message {
-            margin-bottom: 20px;
-            page-break-inside: avoid;
-          }
-
-          .role-label {
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: #FF8A00;
-            margin-bottom: 6px;
-          }
-
-          .user-bubble {
-            background: #FFF4E5;
-            border-left: 3px solid #FF8A00;
-            padding: 10px 16px;
-            border-radius: 4px;
-            color: #1A150F;
-          }
-
-          .assistant-bubble {
-            padding: 10px 0;
-            color: #1A150F;
-          }
-
-          .footer {
-            margin-top: 40px;
-            padding-top: 12px;
-            border-top: 1px solid #D9C7A8;
-            font-size: 10px;
-            color: #D9C7A8;
-            text-align: center;
-          }
-
-          @media print {
-            body { padding: 32px 40px; }
-            .no-print { display: none; }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="watermark">
-          <img src="${window.location.origin}/header-logo.png" alt="PageWise" />
-        </div>
-
-        <div class="header">
-          <img src="${window.location.origin}/header-logo.png" alt="PageWise" />
-          <div class="header-meta">
-            Exported from PageWise · ${new Date().toLocaleDateString('en-IN', { 
-              day: 'numeric', month: 'long', year: 'numeric' 
-            })}
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>${filename || 'pagewise-export'}</title>
+          <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body {
+              font-family: 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+              padding: 48px 56px;
+              color: #1A150F;
+              background: #fff;
+              font-size: 13px;
+              line-height: 1.8;
+            }
+            .watermark {
+              position: fixed;
+              bottom: 24px;
+              right: 32px;
+              opacity: 0.18;
+              z-index: 0;
+            }
+            .watermark img { height: 36px; width: auto; }
+            .header {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              margin-bottom: 32px;
+              padding-bottom: 16px;
+              border-bottom: 2px solid #FF8A00;
+            }
+            .header img { height: 32px; width: auto; }
+            .header-meta { font-size: 11px; color: #6B4F2A; }
+            .message { margin-bottom: 20px; page-break-inside: avoid; }
+            .role-label {
+              font-size: 10px;
+              font-weight: 700;
+              letter-spacing: 2px;
+              text-transform: uppercase;
+              color: #FF8A00;
+              margin-bottom: 6px;
+            }
+            .user-bubble {
+              background: #FFF4E5;
+              border-left: 3px solid #FF8A00;
+              padding: 10px 16px;
+              border-radius: 4px;
+              color: #1A150F;
+            }
+            .assistant-bubble { padding: 10px 0; color: #1A150F; }
+            .footer {
+              margin-top: 40px;
+              padding-top: 12px;
+              border-top: 1px solid #D9C7A8;
+              font-size: 10px;
+              color: #D9C7A8;
+              text-align: center;
+            }
+            @media print {
+              body { padding: 32px 40px; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="watermark">
+            <img src="${window.location.origin}/header-logo.png" alt="PageWise" />
           </div>
-        </div>
-
-        ${msgs.map(m => `
-          <div class="message">
-            <div class="role-label">${m.role === 'user' ? 'You' : 'PageWise'}</div>
-            <div class="${m.role === 'user' ? 'user-bubble' : 'assistant-bubble'}">
-              ${m.text
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/^## (.*)/gm, '<h2 style="font-size:16px;margin:12px 0 6px;">$1</h2>')
-                .replace(/^### (.*)/gm, '<h3 style="font-size:14px;margin:10px 0 4px;">$1</h3>')
-                .replace(/^[-*] (.*)/gm, '<div style="display:flex;gap:8px;margin:3px 0"><span style="color:#FF8A00">•</span><span>$1</span></div>')
-                .replace(/\n/g, '<br/>')
-              }
+          <div class="header">
+            <img src="${window.location.origin}/header-logo.png" alt="PageWise" />
+            <div class="header-meta">
+              Exported from PageWise · ${new Date().toLocaleDateString('en-IN', {
+                day: 'numeric', month: 'long', year: 'numeric'
+              })}
             </div>
           </div>
-        `).join('')}
+          ${msgs.map(m => `
+            <div class="message">
+              <div class="role-label">${m.role === 'user' ? 'You' : 'PageWise'}</div>
+              <div class="${m.role === 'user' ? 'user-bubble' : 'assistant-bubble'}">
+                ${m.text
+                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                  .replace(/^## (.*)/gm, '<h2 style="font-size:16px;margin:12px 0 6px;">$1</h2>')
+                  .replace(/^### (.*)/gm, '<h3 style="font-size:14px;margin:10px 0 4px;">$1</h3>')
+                  .replace(/^[-*] (.*)/gm, '<div style="display:flex;gap:8px;margin:3px 0"><span style="color:#FF8A00">•</span><span>$1</span></div>')
+                  .replace(/\n/g, '<br/>')
+                }
+              </div>
+            </div>
+          `).join('')}
+          <div class="footer">Generated by PageWise · getpagewise.vercel.app</div>
+          <script>
+            window.onload = () => {
+              window.print();
+              window.onafterprint = () => window.close();
+            };
+          </script>
+        </body>
+      </html>
+    `);
 
-        <div class="footer">
-          Generated by PageWise · getpagewise.vercel.app
-        </div>
-
-        <script>
-          window.onload = () => {
-            window.print();
-            window.onafterprint = () => window.close();
-          };
-        </script>
-      </body>
-    </html>
-  `);
-
-  printWindow.document.close();
-
-  await incrementUsage(session.user.id, "exports");
-  setUsage(prev => ({ ...prev, exports: prev.exports + 1 }));
-};
+    printWindow.document.close();
+    await incrementUsage(session.user.id, "exports");
+    setUsage(prev => ({ ...prev, exports: prev.exports + 1 }));
+  };
 
   // ── Peek at localStorage — show resume UI without auto-loading ──
   const [savedSession, setSavedSession] = useState<{
@@ -388,21 +351,25 @@ export default function AppWrapper() {
 
   const [session, setSession] = useState<any>(null);
 
-  
   useEffect(() => {
-  supabase.auth.getSession().then(({ data: { session } }) => {
-    setSession(session);
-    if (session) getUsageToday(session.user.id).then(setUsage);
-  });
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) {
+        getUsageToday(session.user.id).then(setUsage);
+        loadChats(session.user.id).then(setChatList);
+      }
+    });
 
-  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-    setSession(session);
-    if (session) getUsageToday(session.user.id).then(setUsage);
-  });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) {
+        getUsageToday(session.user.id).then(setUsage);
+        loadChats(session.user.id).then(setChatList);
+      }
+    });
 
-  return () => subscription.unsubscribe();
-}, []);
-
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleInstall = async () => {
     if (!installPrompt) return;
@@ -415,10 +382,12 @@ export default function AppWrapper() {
     await supabase.auth.signOut();
     localStorage.removeItem("pagewise_session");
     setSavedSession(null);
+    setCurrentChatId(null);
+    setChatList([]);
     reset();
   };
 
-  const currentTier: Tier = "starter"
+  const currentTier: Tier = "starter";
   const activeTier: TierConfig = tierConfig[currentTier];
   const pdfsUploadedToday = usage.pdfs;
 
@@ -427,7 +396,11 @@ export default function AppWrapper() {
     if (usage.pdfs >= activeTier.pdfsPerDay) { setUpgradeModal({ visible: true, reason: "pdfs" }); return; }
     await incrementUsage(session.user.id, "pdfs");
     setUsage(prev => ({ ...prev, pdfs: prev.pdfs + 1 }));
-  
+
+    // Reset chat state for new PDF
+    setCurrentChatId(null);
+    setChatInitialized(false);
+
     setPdfName(file.name);
     setMessages([]);
     setShowHints(true);
@@ -444,6 +417,34 @@ export default function AppWrapper() {
       setMessages([{ role: "assistant", text: "Error reading PDF. Make sure it is not password-protected.", ts: Date.now() }]);
     }
     setUploading(false);
+  };
+
+  // ── Open existing chat (full restore) ─────────────────
+  const handleOpenChat = async (chatId: string) => {
+    if (!session) return;
+    const restored = await openChat(chatId, session.user.id);
+    if (!restored) return;
+
+    setPdfText(restored.chat.pdf_text || "");
+    setPdfName(restored.chat.pdf_name || "");
+    setPdfMeta(null); // page/word count not stored, fine
+    setMessages(
+      restored.messages.map(m => ({
+        role: m.role,
+        text: m.content,
+        ts: new Date(m.created_at).getTime(),
+      }))
+    );
+    setCurrentChatId(chatId);
+    setChatInitialized(true);
+    setShowHints(false);
+
+    // Bring to top of sidebar
+    setChatList(prev => {
+      const target = prev.find(c => c.id === chatId);
+      const rest = prev.filter(c => c.id !== chatId);
+      return target ? [target, ...rest] : prev;
+    });
   };
 
   // Word-by-word streaming reveal
@@ -475,7 +476,8 @@ export default function AppWrapper() {
     const q = (text || input).trim();
     if (!q || !pdfText || loading || streaming) return;
     if (!isRetry && usage.questions >= activeTier.dailyQuestions) { setUpgradeModal({ visible: true, reason: "questions" }); return; }
-    if (!isRetry) { await incrementUsage(session.user.id, "questions");
+    if (!isRetry) {
+      await incrementUsage(session.user.id, "questions");
       setUsage(prev => ({ ...prev, questions: prev.questions + 1 }));
     }
     if (!isRetry) {
@@ -533,6 +535,37 @@ export default function AppWrapper() {
       const fullText: string = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
       setLoading(false);
       revealWords(fullText);
+
+      // ── Persist to Supabase ──────────────────────────────
+      try {
+        let chatId = currentChatId;
+
+        if (!chatId) {
+          // First message — create the chat
+          const chat = await createChat(
+            session.user.id,
+            pdfName,
+            pdfText,
+            pdfName.replace(".pdf", "")
+          );
+          if (chat) {
+            chatId = chat.id;
+            setCurrentChatId(chat.id);
+            setChatInitialized(true);
+            setChatList(prev => [chat, ...prev]);
+          }
+        }
+
+        if (chatId) {
+          await saveMessage(chatId, session.user.id, "user", q);
+          await saveMessage(chatId, session.user.id, "assistant", fullText);
+        }
+      } catch (err: any) {
+        if (err.message === "PDF_TOO_LARGE") {
+          setUpgradeModal({ visible: true });
+        }
+      }
+
     } catch (err: any) {
       if (err?.name === "AbortError") return;
       setLoading(false);
@@ -607,6 +640,8 @@ export default function AppWrapper() {
   const reset = () => {
     setPdfText(""); setPdfName(""); setMessages([]);
     setPdfMeta(null); setSmartQs([]);
+    setCurrentChatId(null);
+    setChatInitialized(false);
     localStorage.removeItem("pagewise_session");
   };
 
@@ -619,86 +654,89 @@ export default function AppWrapper() {
     <>
       <UpgradeModal visible={upgradeModal.visible} reason={upgradeModal.reason} onClose={() => setUpgradeModal({ visible: false })} />
       <SplashScreen visible={splash} />
-      { currentTier === "starter" ? (
-  <StarterLayout
-    tier={activeTier}
-    pdfsUploadedToday={usage.pdfs}
-    questionsUsedToday={usage.questions}
-    exportsUsedToday={usage.exports}
-    currentTier={currentTier}
-    pdfName={pdfName}
-    pdfText={pdfText}
-    pdfMeta={pdfMeta}
-    messages={messages}
-    loading={loading}
-    streaming={streaming}
-    persona={persona}
-    setPersona={setPersona}
-    input={input}
-    setInput={setInput}
-    send={send}
-    language={language}
-    setLanguage={setLanguage}
-    handleFile={handleFile}
-    onLogout={handleLogout}
-    onNavigate={setPage}
-    onUpgrade={() => setUpgradeModal({ visible: true })}
-    onReset={reset}
-    fmt={fmt}
-    onExportPdf={exportPdfFromMessages}
-  />
-) : hasPDF ? (
-  <ChatLayout
-    pdfMeta={pdfMeta}
-    messages={messages}
-    loading={loading}
-    streaming={streaming}
-    persona={persona}
-    setPersona={setPersona}
-    input={input}
-    setInput={setInput}
-    send={send}
-    copy={copy}
-    copied={copied}
-    showHints={showHints}
-    smartQs={smartQs}
-    loadingQs={loadingQs}
-    generateSmartQs={generateSmartQs}
-    fileRef={fileRef}
-    bottomRef={bottomRef}
-    textareaRef={textareaRef}
-    handleFile={handleFile}
-    onReset={reset}
-    currentP={currentP}
-    fmt={fmt}
-    language={language}
-    setLanguage={setLanguage}
-    installPrompt={installPrompt}
-    handleInstall={handleInstall}
-    onLogout={handleLogout}
-    pdfText={pdfText}
-    pdfName={pdfName}
-    onExportPdf={exportPdfFromMessages}
-  />
-) : (
-  <PdfLayout
-    uploading={uploading}
-    dragOver={dragOver}
-    setDragOver={setDragOver}
-    handleFile={handleFile}
-    fileRef={fileRef}
-    installPrompt={installPrompt}
-    handleInstall={handleInstall}
-    tier={activeTier}
-    pdfsUplodedToday={pdfsUploadedToday}
-    onLogout={handleLogout}
-    onNavigate={setPage}
-    hasSavedSession={!!savedSession}
-    savedPdfName={savedSession?.name || ""}
-    onResume={handleResume}
-    onClearSession={handleClearSession}
-  />
-)}
+      {currentTier === "starter" ? (
+        <StarterLayout
+          tier={activeTier}
+          pdfsUploadedToday={usage.pdfs}
+          questionsUsedToday={usage.questions}
+          exportsUsedToday={usage.exports}
+          currentTier={currentTier}
+          pdfName={pdfName}
+          pdfText={pdfText}
+          pdfMeta={pdfMeta}
+          messages={messages}
+          loading={loading}
+          streaming={streaming}
+          persona={persona}
+          setPersona={setPersona}
+          input={input}
+          setInput={setInput}
+          send={send}
+          language={language}
+          setLanguage={setLanguage}
+          handleFile={handleFile}
+          onLogout={handleLogout}
+          onNavigate={setPage}
+          onUpgrade={() => setUpgradeModal({ visible: true })}
+          onReset={reset}
+          fmt={fmt}
+          onExportPdf={exportPdfFromMessages}
+          chatList={chatList}
+          onOpenChat={handleOpenChat}
+          currentChatId={currentChatId}
+        />
+      ) : hasPDF ? (
+        <ChatLayout
+          pdfMeta={pdfMeta}
+          messages={messages}
+          loading={loading}
+          streaming={streaming}
+          persona={persona}
+          setPersona={setPersona}
+          input={input}
+          setInput={setInput}
+          send={send}
+          copy={copy}
+          copied={copied}
+          showHints={showHints}
+          smartQs={smartQs}
+          loadingQs={loadingQs}
+          generateSmartQs={generateSmartQs}
+          fileRef={fileRef}
+          bottomRef={bottomRef}
+          textareaRef={textareaRef}
+          handleFile={handleFile}
+          onReset={reset}
+          currentP={currentP}
+          fmt={fmt}
+          language={language}
+          setLanguage={setLanguage}
+          installPrompt={installPrompt}
+          handleInstall={handleInstall}
+          onLogout={handleLogout}
+          pdfText={pdfText}
+          pdfName={pdfName}
+          onExportPdf={exportPdfFromMessages}
+        />
+      ) : (
+        <PdfLayout
+          uploading={uploading}
+          dragOver={dragOver}
+          setDragOver={setDragOver}
+          handleFile={handleFile}
+          fileRef={fileRef}
+          installPrompt={installPrompt}
+          handleInstall={handleInstall}
+          tier={activeTier}
+          pdfsUplodedToday={pdfsUploadedToday}
+          onLogout={handleLogout}
+          onNavigate={setPage}
+          hasSavedSession={!!savedSession}
+          savedPdfName={savedSession?.name || ""}
+          onResume={handleResume}
+          onClearSession={handleClearSession}
+        />
+      )}
     </>
   );
 }
