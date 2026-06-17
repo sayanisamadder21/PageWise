@@ -581,9 +581,9 @@ export default function StarterLayout({
           background: S.header, borderBottom: `1px solid ${S.headerBorder}`,
           padding: "0 16px", height: 52,
           display: "flex", alignItems: "center", justifyContent: "space-between",
-          flexShrink: 0, boxShadow: S.shadow, zIndex: 10,
+          flexShrink: 0, boxShadow: S.shadow, zIndex: 10, position: "relative",
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
             {isMobile && (
               <button onClick={() => setSidebarOpen(true)} style={{
                 background: "none", border: "none", fontSize: 20,
@@ -601,6 +601,7 @@ export default function StarterLayout({
             {view === "home"     && <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>New Chat</div>}
             {view === "settings" && <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>Settings</div>}
           </div>
+          <div style={{ flexShrink: 0 }} />
         </div>
 
         {/* ── HOME view ── */}
@@ -872,7 +873,7 @@ export default function StarterLayout({
             {/* ── Input Bar ── */}
             <div style={{
               background: S.header, borderTop: `1px solid ${S.headerBorder}`,
-              padding: "10px 16px 14px", flexShrink: 0, zIndex: 10,
+              padding: "10px 16px 14px", flexShrink: 0, zIndex: 10, position: "relative",
             }}>
               {/* MODE + LANG row */}
               <div style={{
@@ -960,7 +961,11 @@ export default function StarterLayout({
                 <textarea
                   className="chat-input"
                   value={input}
-                  onChange={e => setInput(e.target.value)}
+                  onChange={e => {
+                    setInput(e.target.value);
+                    e.target.style.height = "auto";
+                    e.target.style.height = Math.min(e.target.scrollHeight, 90) + "px";
+                  }}
                   placeholder={
                     atQuestionLimit
                       ? "Question limit reached for today..."
@@ -1008,7 +1013,7 @@ export default function StarterLayout({
                 <div style={{ fontSize: 9, color: C.orange, fontWeight: 700, letterSpacing: 1 }}>
                   GEMINI 2.5 FLASH
                 </div>
-                </div>
+              </div>
             </div>
             </>
             )}
