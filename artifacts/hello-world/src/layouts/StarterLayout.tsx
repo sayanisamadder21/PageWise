@@ -231,6 +231,8 @@ export default function StarterLayout({
   const [showChats, setShowChats]     = useState(true);
   const [copied, setCopied]           = useState<number | null>(null);
   const [hoveredChatId, setHoveredChatId] = useState<string | null>(null);
+  const [contextMenuChatId, setContextMenuChatId] = useState<string | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileRef   = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -438,50 +440,105 @@ export default function StarterLayout({
                   No chats yet. Upload a PDF and start asking questions!
                 </div>
               ) : (
-                chatList.map(chat => (
-  <div key={chat.id} className="chat-item"
-    onClick={() => handleSelectChat(chat.id)}
-    onMouseEnter={() => setHoveredChatId(chat.id)}
-    onMouseLeave={() => setHoveredChatId(null)}
-    style={{
-      padding: "8px 12px", borderRadius: 8, marginBottom: 2, cursor: "pointer",
-      background: currentChatId === chat.id ? "rgba(255,140,0,0.08)" : "transparent",
-      borderLeft: currentChatId === chat.id ? `2px solid ${S.sidebarActive}` : "2px solid transparent",
-      transition: "background 0.15s",
-      display: "flex", alignItems: "center", gap: 6,
-    }}>
-    {/* Title + time */}
-    <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{
-        fontSize: 12, fontWeight: currentChatId === chat.id ? 700 : 500,
-        color: currentChatId === chat.id ? S.sidebarActive : S.sidebarText,
-        marginBottom: 2, whiteSpace: "nowrap",
-        overflow: "hidden", textOverflow: "ellipsis",
-      }}>{chat.title}</div>
-      <div style={{ fontSize: 10, color: "#665E52" }}>
-        {timeAgo(chat.last_accessed_at)}
-      </div>
-    </div>
-    {/* Delete button — only visible on hover */}
-    {hoveredChatId === chat.id && (
-      <button
-        onClick={e => {
-          e.stopPropagation(); // don't open the chat
-          onDeleteChat(chat.id);
-        }}
-        title="Delete chat"
-        style={{
-          background: "transparent", border: "none",
-          cursor: "pointer", padding: "2px 4px", flexShrink: 0,
-          color: "#CC4444", fontSize: 14, lineHeight: 1,
-          borderRadius: 4, transition: "background 0.15s",
-        }}
-        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(204,68,68,0.15)"}
-        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
-      >✕</button>
-    )}
-  </div>
-))
+                chatList.map(chat => {
+                  const isActive = currentChatId === chat.id;
+                  const isMenu   = contextMenuChatId === chat.id;
+                  return (
+                    <div key={chat.id} style={{ position: "relative" }}>
+                      <div className="chat-item"
+                        onClick={() => {
+                          if (isMenu) { setContextMenuChatId(null); return; }
+                          handleSelectChat(chat.id);
+                        }}
+                        onMouseEnter={() => setHoveredChatId(chat.id)}
+                        onMouseLeave={() => setHoveredChatId(null)}
+                        onMouseDown={() => {
+                          longPressTimer.current = setTimeout(() => {
+                            setContextMenuChatId(chat.id);
+                          }, 500);
+                        }}
+                        onMouseUp={() => {
+                          if (longPressTimer.current) clearTimeout(longPressTimer.current);
+                        }}
+                        onTouchStart={() => {
+                          longPressTimer.current = setTimeout(() => {
+                            setContextMenuChatId(chat.id);
+                          }, 500);
+                        }}
+                        onTouchEnd={() => {
+                          if (longPressTimer.current) clearTimeout(longPressTimer.current);
+                        }}
+                        style={{
+                          padding: "8px 12px", borderRadius: 8, marginBottom: 2, cursor: "pointer",
+                          userSelect: "none",
+                          background: isActive ? "rgba(255,140,0,0.08)" : "transparent",
+                          borderLeft: isActive ? `2px solid ${S.sidebarActive}` : "2px solid transparent",
+                          transition: "background 0.15s",
+                          display: "flex", alignItems: "center", gap: 6,
+                        }}>
+                        {/* Title + time */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{
+                            fontSize: 12, fontWeight: isActive ? 700 : 500,
+                            color: isActive ? S.sidebarActive : S.sidebarText,
+                            marginBottom: 2, whiteSpace: "nowrap",
+                            overflow: "hidden", textOverflow: "ellipsis",
+                          }}>{chat.title}</div>
+                          <div style={{ fontSize: 10, color: "#665E52" }}>
+                            {timeAgo(chat.last_accessed_at)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* ── Context menu (long-press) ── */}
+                      {isMenu && (
+                        <>
+                          <div
+                            onClick={() => setContextMenuChatId(null)}
+                            style={{ position: "fixed", inset: 0, zIndex: 90 }}
+                          />
+                          <div style={{
+                            position: "absolute", left: 12, top: "100%",
+                            zIndex: 100, minWidth: 140,
+                            background: "#2A221A",
+                            border: `1px solid ${S.sidebarBorder}`,
+                            borderRadius: 10,
+                            boxShadow: "0 8px 24px rgba(0,0,0,0.40)",
+                            overflow: "hidden",
+                            animation: "fadeIn 0.12s ease",
+                          }}>
+                            <div
+                              onClick={e => {
+                                e.stopPropagation();
+                                onDeleteChat(chat.id);
+                                setContextMenuChatId(null);
+                              }}
+                              style={{
+                                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+                                padding: "10px 14px", cursor: "pointer", fontSize: 12,
+                                fontWeight: 600, color: "#FF5555",
+                                fontFamily: "'Montserrat', sans-serif",
+                                transition: "background 0.1s",
+                              }}
+                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,60,60,0.10)"}
+                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+                            >
+                              <span>Delete</span>
+                              <svg width={14} height={14} viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3 6h18" />
+                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                                <path d="M10 11v6" />
+                                <path d="M14 11v6" />
+                                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                              </svg>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })
               )}
 
               {/* Usage footer */}
