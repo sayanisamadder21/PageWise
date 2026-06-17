@@ -41,6 +41,48 @@ const AUTO_PROMPTS: Record<string, string> = {
   summarizer: "Give me a TL;DR summary in 5 bullet points",
 };
 
+// ── Auto-detect document type via Claude API ──
+async function detectDocType(pdfText: string): Promise<string | null> {
+  try {
+    const snippet = pdfText.slice(0, 600);
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 1000,
+        messages: [{
+          role: "user",
+          content: `You are a document classifier. Based on the text excerpt below, classify the document into EXACTLY one of these categories and respond with ONLY that single word, nothing else:
+- medical (health records, clinical notes, prescriptions, lab results, medical research)
+- legal (contracts, agreements, court documents, legal briefs, terms, compliance)
+- finance (financial reports, invoices, tax, accounting, investment)
+- academic (research papers, textbooks, study materials, exam papers)
+- general (anything else)
+
+Text excerpt:
+"""
+${snippet}
+"""
+
+Reply with one word only.`,
+        }],
+      }),
+    });
+    const data = await res.json();
+    const result = data?.content?.[0]?.text?.trim().toLowerCase();
+    const PERSONA_MAP: Record<string, string> = {
+      medical:  "medical",
+      legal:    "lawyer",
+      finance:  "analyst",
+      academic: "studynotes",
+    };
+    return PERSONA_MAP[result] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 interface Message {
   role: string;
   text: string;
@@ -243,10 +285,21 @@ export default function StarterLayout({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  const [detecting, setDetecting] = useState(false);
+
   const pdfsRemaining = tier.pdfsPerDay === -1 ? null : tier.pdfsPerDay - pdfsUploadedToday;
 
   useEffect(() => {
-    if (pdfText) setView("chat");
+    if (pdfText) {
+      setView("chat");
+      // Reset to "none" mode first, then auto-detect
+      setPersona("none");
+      setDetecting(true);
+      detectDocType(pdfText).then(detectedPersona => {
+        if (detectedPersona) setPersona(detectedPersona);
+        setDetecting(false);
+      });
+    }
   }, [pdfText]);
 
   useEffect(() => {
@@ -342,6 +395,14 @@ export default function StarterLayout({
         textarea { font-family:'Montserrat',sans-serif; }
         textarea::placeholder { color:#B8A99A; font-style:italic; }
         select { font-family:'Montserrat',sans-serif; }
+        .page-cite {
+          display:inline-flex; align-items:center;
+          background:rgba(255,140,0,0.10); border:1px solid rgba(255,140,0,0.25);
+          color:#CC6F00; border-radius:4px; padding:0px 5px;
+          font-size:10px; font-weight:700; font-family:'Montserrat',sans-serif;
+          letter-spacing:0.3px; margin:0 2px; vertical-align:middle;
+          cursor:default; white-space:nowrap;
+        }
       `}</style>
 
       {/* Hidden file input */}
@@ -760,7 +821,12 @@ export default function StarterLayout({
                           }}>PageWise</div>
                           <div
                             style={{ fontSize: 13, color: "#3D3530", lineHeight: 1.7 }}
-                            dangerouslySetInnerHTML={{ __html: fmt(msg.text) }}
+                            dangerouslySetInnerHTML={{ __html:
+                              fmt(msg.text).replace(
+                                /\[(?:p\.|page\s*)(\d+(?:[-–]\d+)?)\]/gi,
+                                (_: string, pg: string) => `<span class="page-cite">p.${pg}</span>`
+                              )
+                            }}
                           />
                         </div>
                         {/* Copy + Export buttons */}
@@ -893,6 +959,26 @@ export default function StarterLayout({
                   }} />
                   <div style={{ display: "flex", gap: 4, overflowX: "auto", flexWrap: "nowrap",
                     scrollbarWidth: "none", msOverflowStyle: "none" }}>
+                    {/* ── No Mode button ── */}
+                    <button className="mode-btn"
+                      onClick={() => !isBusy && setPersona("none")}
+                      disabled={isBusy}
+                      style={{
+                        flexShrink: 0,
+                        background: persona === "none" ? C.dark : "transparent",
+                        border: `1px solid ${persona === "none" ? C.orange : S.pillBorder}`,
+                        borderRadius: 8, padding: "5px 9px",
+                        color: persona === "none" ? C.gold : C.textMid,
+                        cursor: isBusy ? "not-allowed" : "pointer",
+                        fontFamily: "'Montserrat', sans-serif",
+                        fontSize: 11, fontWeight: 600,
+                        display: "flex", alignItems: "center", gap: 4,
+                        transition: "all 0.15s",
+                        opacity: isBusy ? 0.5 : 1,
+                        whiteSpace: "nowrap",
+                      }}>
+                      {detecting ? <Dots /> : "✦ No Mode"}
+                    </button>
                     {PERSONAS.map(p => (
                       <button key={p.id} className="mode-btn"
                         onClick={() => handleModeClick(p.id)}
@@ -969,6 +1055,10 @@ export default function StarterLayout({
                   placeholder={
                     atQuestionLimit
                       ? "Question limit reached for today..."
+                      : detecting
+                      ? "Detecting document type..."
+                      : persona === "none"
+                      ? "Ask anything about your document..."
                       : `Ask in ${PERSONAS.find(p => p.id === persona)?.label ?? "Analyst"} mode...`
                   }
                   disabled={atQuestionLimit}
