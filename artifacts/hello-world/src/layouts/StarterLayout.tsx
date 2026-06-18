@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { C, PERSONAS, LANGUAGES, ICON_PATHS } from "../AppNew";
-import { TierConfig } from "../config/tierConfig";
+import { TierConfig, isFeatureUnlocked} from "../config/tierConfig";
 import { Chat } from "../services/chatService";
 
 const S = {
@@ -40,6 +40,16 @@ const AUTO_PROMPTS: Record<string, string> = {
   examgen:    "Generate exam questions from this document",
   summarizer: "Give me a TL;DR summary in 5 bullet points",
 };
+
+function LockIcon({ size = 9, color ="currentColor"}: {size?: number; color?: string}) {
+  return(
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5" y=" 11 " width=" 14" height=" 10" rx="2" />
+      <path d=" M8 11V7a4 4 0 0 1 8 0v4" />
+      </svg>
+    );
+    }
 
 // ── Auto-detect document type via Claude API ──
 async function detectDocType(pdfText: string): Promise<string | null> {
@@ -292,15 +302,20 @@ export default function StarterLayout({
   useEffect(() => {
     if (pdfText) {
       setView("chat");
-      // Reset to "none" mode first, then auto-detect
-      setPersona("none");
+      if (currentTier === "free") {
+        setPersona("analyst");
+        setDetecting(false);
+        return;
+      }
+      // Reset to "default" mode first, then auto-detect
+      setPersona("default");
       setDetecting(true);
       detectDocType(pdfText).then(detectedPersona => {
         if (detectedPersona) setPersona(detectedPersona);
         setDetecting(false);
       });
     }
-  }, [pdfText]);
+  }, [pdfText, currentTier]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -960,15 +975,16 @@ export default function StarterLayout({
                   <div style={{ display: "flex", gap: 4, overflowX: "auto", flexWrap: "nowrap",
                     scrollbarWidth: "none", msOverflowStyle: "none" }}>
                     {/* ── No Mode button ── */}
+                    {currentTier !== "free" && (
                     <button className="mode-btn"
-                      onClick={() => !isBusy && setPersona("none")}
+                      onClick={() => !isBusy && setPersona("default")}
                       disabled={isBusy}
                       style={{
                         flexShrink: 0,
-                        background: persona === "none" ? C.dark : "transparent",
-                        border: `1px solid ${persona === "none" ? C.orange : S.pillBorder}`,
+                        background: persona === "default" ? C.dark : "transparent",
+                        border: `1px solid ${persona === "default" ? C.orange : S.pillBorder}`,
                         borderRadius: 8, padding: "5px 9px",
-                        color: persona === "none" ? C.gold : C.textMid,
+                        color: persona === "default" ? C.gold : C.textMid,
                         cursor: isBusy ? "not-allowed" : "pointer",
                         fontFamily: "'Montserrat', sans-serif",
                         fontSize: 11, fontWeight: 600,
@@ -977,30 +993,36 @@ export default function StarterLayout({
                         opacity: isBusy ? 0.5 : 1,
                         whiteSpace: "nowrap",
                       }}>
-                      {detecting ? <Dots /> : "✦ No Mode"}
+                      {detecting ? <Dots /> : "✦ Default"}
                     </button>
-                    {PERSONAS.map(p => (
+                    )}
+                    {PERSONAS.map(p => {
+                      const isLocked = currentTier === "free" && !isFeatureUnlocked(currentTier, p.id);
+                      return (
                       <button key={p.id} className="mode-btn"
-                        onClick={() => handleModeClick(p.id)}
+                        onClick={() => isLocked? onUpgrade?.() : handleModeClick(p.id)}
                         disabled={isBusy}
+                        title= {isLocked ? "Upgrade to Starter to unlock this mode" : undefined}
                         style={{
                           flexShrink: 0,
                           background: persona === p.id ? C.dark : "transparent",
                           border: `1px solid ${persona === p.id ? C.orange : S.pillBorder}`,
                           borderRadius: 8, padding: "5px 9px",
-                          color: persona === p.id ? C.gold : C.textMid,
+                          color: persona === p.id ? C.gold : (isLocked ? C.muted : C.textMid),
                           cursor: isBusy ? "not-allowed" : "pointer",
                           fontFamily: "'Montserrat', sans-serif",
                           fontSize: 11, fontWeight: 600,
                           display: "flex", alignItems: "center", gap: 4,
                           transition: "all 0.15s",
-                          opacity: isBusy ? 0.5 : 1,
+                          opacity: isBusy ? 0.5 : (isLocked ? 0.55 : 1),
                           whiteSpace: "nowrap",
                         }}>
-                        <Icon name={p.icon} size={11} color={persona === p.id ? C.gold : C.textMid} />
+                        <Icon name={p.icon} size={11} color={persona === p.id ? C.gold : (isLocked ? C.muted : C.textMid)} />
                         {p.label}
+                        {isLocked && <LockIcon size ={9} color ={C.muted}/>}
                       </button>
-                    ))}
+                    );
+                    })}
                   </div>
                 </div>
 
@@ -1057,7 +1079,7 @@ export default function StarterLayout({
                       ? "Question limit reached for today..."
                       : detecting
                       ? "Detecting document type..."
-                      : persona === "none"
+                      : persona === "default"
                       ? "Ask anything about your document..."
                       : `Ask in ${PERSONAS.find(p => p.id === persona)?.label ?? "Analyst"} mode...`
                   }

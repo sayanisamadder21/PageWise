@@ -47,11 +47,11 @@ export const MODES = {
   ANALYST: "analyst",
   TEACHER: "teacher",
   LAWYER: "lawyer",
-  TLDR: "tldr",
-  MEDICAL: "medical",
-  KEY_INSIGHTS: "key_insights",
-  STUDY_NOTES: "study_notes",
-  EXAM_GENERATOR: "exam_generator",
+  TLDR: "summarizer",
+  MEDICAL: "doctor",
+  KEY_INSIGHTS: "insights",
+  STUDY_NOTES: "studynotes",
+  EXAM_GENERATOR: "examgen",
 } as const;
 
 export const ALL_MODES = Object.values(MODES);

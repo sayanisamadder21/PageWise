@@ -10,7 +10,7 @@ import React from "react";
 import { getUsageToday, incrementUsage } from "./utils/usageTracking";
 import UpgradeModal from "./components/UpgradeModal";
 import StarterLayout from "./layouts/StarterLayout";
-import { Tier, TierConfig } from "./config/tierConfig";
+import { Tier, TierConfig, isFeatureUnlocked } from "./config/tierConfig";
 import { createChat, loadChats, openChat, saveMessage, Chat } from "./services/chatService";
 
 // ── Splash Screen ──────────────────────────────────────────
@@ -329,7 +329,7 @@ export default function AppWrapper() {
     }));
   }, [pdfText, pdfName, pdfMeta, messages, persona, language]);
 
-  const currentP = PERSONAS.find(p => p.id === persona)!;
+  const currentP = PERSONAS.find(p => p.id === persona) ?? {id : "default", label: "Default", icon: "sparkles", desc: " ", sys: " "};
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -357,6 +357,7 @@ export default function AppWrapper() {
       if (session) {
         getUsageToday(session.user.id).then(setUsage);
         loadChats(session.user.id).then(setChatList);
+        loadUserTier(session.user.id);
       }
     });
 
@@ -365,6 +366,7 @@ export default function AppWrapper() {
       if (session) {
         getUsageToday(session.user.id).then(setUsage);
         loadChats(session.user.id).then(setChatList);
+        loadUserTier(session.user.id)
       }
     });
 
@@ -387,9 +389,23 @@ export default function AppWrapper() {
     reset();
   };
 
-  const currentTier: Tier = "starter";
-  const activeTier: TierConfig = tierConfig[currentTier];
+  const [currentTier, setCurrentTier] = useState<Tier>("free");
+  const loadUserTier= async (userId: string) => { 
+    const override = new URLSearchParams(window.location.search).get("tier") as Tier | null;
+    if (override && ["free", "starter","pro"].includes(override)){
+      setCurrentTier(override);
+      return;
+    }
+    const{ data } = await supabase.from("users").select("tier").eq("id", userId).single();
+    setCurrentTier((data?.tier as Tier)|| "free"); };
+    const activeTier: TierConfig = tierConfig[currentTier]
   const pdfsUploadedToday = usage.pdfs;
+
+  useEffect(()=> {
+    if (currentTier === "free" && (persona === "default" || !isFeatureUnlocked(currentTier, persona))) {
+      setPersona("analyst");
+    }
+  }, [currentTier, persona])
 
   const handleFile = async (file: File) => {
     if (!file || file.type !== "application/pdf") { alert("Please upload a PDF file."); return; }
@@ -486,24 +502,31 @@ export default function AppWrapper() {
   const send = async (text?: string, isRetry = false) => {
     const q = (text || input).trim();
     if (!q || !pdfText || loading || streaming) return;
-    if (!isRetry && usage.questions >= activeTier.dailyQuestions) { setUpgradeModal({ visible: true, reason: "questions" }); return; }
+    const personaBlocked = persona === "default"
+    ? currentTier === "free"
+    : !isFeatureUnlocked(currentTier, persona);
+    if (personaBlocked) {
+      setUpgradeModal({ visible: true });
+      return;
+    }
+    if (!isRetry && usage.questions >= activeTier.dailyQuestions) { setUpgradeModal({ visible: true, reason: "questions"}); return;}
     if (!isRetry) {
       await incrementUsage(session.user.id, "questions");
-      setUsage(prev => ({ ...prev, questions: prev.questions + 1 }));
+      setUsage(prev => ({ ...prev, questions: prev.questions + 1}));
     }
     if (!isRetry) {
-      setInput("");
+      setInput(" ");
       setShowHints(false);
-      setMessages(prev => [...prev, { role: "user", text: q, ts: Date.now() }]);
+      setMessages(prev => [...prev, {role: "user", text:q, ts: Date.now()}]);
     }
     setLoading(true);
     setStreaming(true);
-
     abortRef.current?.abort();
     abortRef.current = new AbortController();
 
     const langInstruction = language !== "English" ? `\nAlways respond in ${language}.` : "";
-    const fullPrompt = currentP.sys + langInstruction + "\n\nDocument Content:\n" + pdfText.slice(0, 12000) + "\n\nUser Question: " + q;
+    const systemInstruction = persona === "default" ? " " : currentP?.sys || " ";
+    const fullPrompt = systemInstruction + langInstruction + "\n\nDocument Content:\n" + pdfText.slice(0, 12000) + "\n\nUser Question: " + q;
 
     try {
       const res = await fetch(QUERY_URL, {

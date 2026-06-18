@@ -1,5 +1,9 @@
 import { C, PERSONAS, SUGGESTIONS, ICON_PATHS, LANGUAGES } from "../AppNew";
 
+
+const FREE_MODES = PERSONAS.filter( 
+  p => !["examgen", "studynotes"].includes(p.id));
+
 function Icon({ name, size = 14, color = "currentColor" }: { name: string; size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
@@ -351,7 +355,7 @@ export default function ChatLayout({
               background: `linear-gradient(to right, transparent, ${C.cardBg})`,
             }} />
             <div style={{ display: "flex", gap: 4, flexWrap: "nowrap", overflowX: "auto" }}>
-              {PERSONAS.map(p => (
+              {FREE_MODES.map(p => (
                 <button key={p.id} className="mode-btn"
                   disabled={isBusy}
                   onClick={() => {
@@ -371,6 +375,19 @@ export default function ChatLayout({
                   {p.label}
                 </button>
               ))}
+              <button
+  style={btnStyle(false, true)}
+  title="Starter required"
+>
+  🔒 Study Notes
+</button>
+
+<button
+  style={btnStyle(false, true)}
+  title="Starter required"
+>
+  🔒 Exam Generator
+</button>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
