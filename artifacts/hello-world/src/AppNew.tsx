@@ -398,11 +398,11 @@ export default function AppWrapper() {
     }
     const{ data } = await supabase.from("users").select("tier").eq("id", userId).single();
     setCurrentTier((data?.tier as Tier)|| "free"); };
-    const activeTier: TierConfig = tierConfig[currentTier]
+  const activeTier: TierConfig = tierConfig[currentTier]
   const pdfsUploadedToday = usage.pdfs;
 
   useEffect(()=> {
-    if (currentTier === "free" && (persona === "default" || !isFeatureUnlocked(currentTier, persona))) {
+    if (!isFeatureUnlocked(currentTier, persona)) {
       setPersona("analyst");
     }
   }, [currentTier, persona])
@@ -502,9 +502,7 @@ export default function AppWrapper() {
   const send = async (text?: string, isRetry = false) => {
     const q = (text || input).trim();
     if (!q || !pdfText || loading || streaming) return;
-    const personaBlocked = persona === "default"
-    ? currentTier === "free"
-    : !isFeatureUnlocked(currentTier, persona);
+    const personaBlocked = !isFeatureUnlocked(currentTier, persona);
     if (personaBlocked) {
       setUpgradeModal({ visible: true });
       return;

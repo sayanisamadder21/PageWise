@@ -302,7 +302,7 @@ export default function StarterLayout({
   useEffect(() => {
     if (pdfText) {
       setView("chat");
-      if (currentTier === "free") {
+      if (!isFeatureUnlocked(currentTier, "default")) {
         setPersona("analyst");
         setDetecting(false);
         return;
@@ -975,7 +975,7 @@ export default function StarterLayout({
                   <div style={{ display: "flex", gap: 4, overflowX: "auto", flexWrap: "nowrap",
                     scrollbarWidth: "none", msOverflowStyle: "none" }}>
                     {/* ── No Mode button ── */}
-                    {currentTier !== "free" && (
+                    {isFeatureUnlocked(currentTier,"default") && (
                     <button className="mode-btn"
                       onClick={() => !isBusy && setPersona("default")}
                       disabled={isBusy}

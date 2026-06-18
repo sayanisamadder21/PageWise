@@ -52,6 +52,7 @@ export const MODES = {
   KEY_INSIGHTS: "insights",
   STUDY_NOTES: "studynotes",
   EXAM_GENERATOR: "examgen",
+  DEFAULT: "default"
 } as const;
 
 export const ALL_MODES = Object.values(MODES);
@@ -75,7 +76,7 @@ export const FREE_MODES = [
 export const tierConfig: Record<Tier, TierConfig> = {
   free: {
     name: "Free",  // Alternative: "Try" — keeping "Free" for clarity
-    authRequired: false,
+    authRequired: true,
 
     dailyQuestions: 30,
     pdfsPerDay: 3,
@@ -99,7 +100,7 @@ export const tierConfig: Record<Tier, TierConfig> = {
     modes: 6,
     unlockedModeIds: FREE_MODES,
 
-    storageType: "localStorage",
+    storageType: "supabase",
 
     monthlyPriceUSD: 0,
     yearlyPriceUSD: 0,
