@@ -1,0 +1,18 @@
+import { S } from "../ProLayout";
+
+export default function ChatPanel() {
+  return (
+    <div style={{
+      height: "100%", display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      gap: 10, padding: 24, textAlign: "center",
+      animation: "fadeIn 0.2s ease",
+    }}>
+      <div style={{ fontSize: 32 }}>💬</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: S.textDark }}>Chat</div>
+      <div style={{ fontSize: 11, color: S.textMuted, lineHeight: 1.6, maxWidth: 240 }}>
+        Pro chat with advanced citations and custom modes will appear here.
+      </div>
+    </div>
+  );
+}

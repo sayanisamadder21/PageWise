@@ -10,6 +10,7 @@ import React from "react";
 import { getUsageToday, incrementUsage } from "./utils/usageTracking";
 import UpgradeModal from "./components/UpgradeModal";
 import StarterLayout from "./layouts/StarterLayout";
+import ProLayout from "./layouts/pro/ProLayout";
 import { Tier, TierConfig, isFeatureUnlocked } from "./config/tierConfig";
 import { createChat, loadChats, openChat, saveMessage, Chat } from "./services/chatService";
 import { getCurrentTier } from "./utils/getCurrentTier";
@@ -695,7 +696,9 @@ export default function AppWrapper() {
     <>
       <UpgradeModal visible={upgradeModal.visible} reason={upgradeModal.reason} onClose={() => setUpgradeModal({ visible: false })} />
       <SplashScreen visible={splash} />
-      {currentTier === "starter" ? (
+      {currentTier === "pro" ? (
+        <ProLayout onLogout={handleLogout} />
+      ) : currentTier === "starter" ? (
         <StarterLayout
           tier={activeTier}
           pdfsUploadedToday={usage.pdfs}
