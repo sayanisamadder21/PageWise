@@ -1,9 +1,6 @@
 import { C, PERSONAS, SUGGESTIONS, ICON_PATHS, LANGUAGES } from "../AppNew";
 
 
-const FREE_MODES = PERSONAS.filter( 
-  p => !["examgen", "studynotes"].includes(p.id));
-
 function Icon({ name, size = 14, color = "currentColor" }: { name: string; size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
@@ -69,6 +66,7 @@ export default function ChatLayout({
   language, setLanguage, installPrompt, handleInstall, onLogout,
   pdfText, pdfName, onExportPdf,
 }: ChatLayoutProps) {
+  const FREE_MODES = PERSONAS.filter(p=> !["examgen", "studynotes"].includes(p.id))
 
   const btnStyle = (active = false, disabled = false): React.CSSProperties => ({
     flexShrink: 0,
