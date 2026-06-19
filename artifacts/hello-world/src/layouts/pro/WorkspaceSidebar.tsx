@@ -10,14 +10,15 @@ interface WorkspaceSidebarProps {
   activeWorkspace: string;
   onWorkspaceChange: (id: string) => void;
   onLogout: () => void;
+  isMobile?: boolean;
 }
 
 export default function WorkspaceSidebar({
-  activeWorkspace, onWorkspaceChange, onLogout,
+  activeWorkspace, onWorkspaceChange, onLogout, isMobile = false,
 }: WorkspaceSidebarProps) {
   return (
     <div style={{
-      width: 220, background: S.sidebar, flexShrink: 0,
+      width: isMobile ? "100%" : 220, background: S.sidebar, flexShrink: 0,
       display: "flex", flexDirection: "column",
       borderRight: `1px solid ${S.sidebarBorder}`,
     }}>

@@ -2,14 +2,15 @@ import { S } from "./ProLayout";
 
 interface WorkspaceMiddlePanelProps {
   activeWorkspace: string;
+  isMobile?: boolean;
 }
 
-export default function WorkspaceMiddlePanel({ activeWorkspace: _ }: WorkspaceMiddlePanelProps) {
+export default function WorkspaceMiddlePanel({ activeWorkspace: _, isMobile = false }: WorkspaceMiddlePanelProps) {
   return (
     <div style={{
-      width: 320, flexShrink: 0, display: "flex", flexDirection: "column",
+      width: isMobile ? "100%" : 320, flexShrink: 0, display: "flex", flexDirection: "column",
       overflow: "hidden", background: S.panelBg,
-      borderRight: `1px solid ${S.panelBorder}`,
+      borderRight: isMobile ? "none" : `1px solid ${S.panelBorder}`,
     }}>
       <div style={{
         height: 48, display: "flex", alignItems: "center",
