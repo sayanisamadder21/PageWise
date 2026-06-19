@@ -52,6 +52,7 @@ interface ChatLayoutProps {
   installPrompt: any;
   handleInstall: () => void;
   onLogout: () => void;
+  onUpgrade?: () => void;
   pdfText: string;
   pdfName: string;
   onExportPdf? : ( msgs: { role: string; text: string; ts?: number }[], filename?: string) => void;
@@ -63,7 +64,7 @@ export default function ChatLayout({
   copy, copied, showHints, smartQs, loadingQs,
   generateSmartQs, fileRef, bottomRef, textareaRef,
   handleFile, onReset, currentP, fmt,
-  language, setLanguage, installPrompt, handleInstall, onLogout,
+  language, setLanguage, installPrompt, handleInstall, onLogout, onUpgrade,
   pdfText, pdfName, onExportPdf,
 }: ChatLayoutProps) {
   const FREE_MODES = PERSONAS.filter(p=> !["examgen", "studynotes"].includes(p.id))
@@ -148,14 +149,13 @@ export default function ChatLayout({
                 fontWeight: 700, whiteSpace: "nowrap",
               }}>🔗 Share</button>
           )}
-          <a href="https://tally.so/r/yPzqV8" target="_blank" rel="noopener noreferrer"
-            style={{
-              background: C.orange, border: "none", borderRadius: 6,
-              display: isMobile ? "none" : "inline-block",
-              padding: "5px 11px", color: C.dark, fontSize: 10,
-              cursor: "pointer", fontFamily: "'Montserrat',sans-serif",
-              fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap",
-            }}>🚀 Join Waitlist</a>
+          <button onClick={onUpgrade} style={{
+            background: C.orange, border: "none", borderRadius: 6,
+            display: isMobile ? "none" : "inline-flex",
+            padding: "5px 11px", color: C.dark, fontSize: 10,
+            cursor: "pointer", fontFamily: "'Montserrat',sans-serif",
+            fontWeight: 700, whiteSpace: "nowrap",
+          }}>⚡ Upgrade to Starter</button>
           <button onClick={onLogout} style={{
             background: "transparent", border: "1px solid #d97706",
             borderRadius: 6, padding: "5px 11px", color: C.orange,

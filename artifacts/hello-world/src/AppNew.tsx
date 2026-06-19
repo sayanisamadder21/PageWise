@@ -12,6 +12,7 @@ import UpgradeModal from "./components/UpgradeModal";
 import StarterLayout from "./layouts/StarterLayout";
 import { Tier, TierConfig, isFeatureUnlocked } from "./config/tierConfig";
 import { createChat, loadChats, openChat, saveMessage, Chat } from "./services/chatService";
+import { getCurrentTier } from "./utils/getCurrentTier";
 
 // ── Splash Screen ──────────────────────────────────────────
 function SplashScreen({ visible }: { visible: boolean }) {
@@ -390,14 +391,15 @@ export default function AppWrapper() {
   };
 
   const [currentTier, setCurrentTier] = useState<Tier>("free");
-  const loadUserTier= async (userId: string) => { 
+  const loadUserTier = async (_userId: string) => {
     const override = new URLSearchParams(window.location.search).get("tier") as Tier | null;
-    if (override && ["free", "starter","pro"].includes(override)){
+    if (override && ["free", "starter", "pro"].includes(override)) {
       setCurrentTier(override);
       return;
     }
-    const{ data } = await supabase.from("users").select("tier").eq("id", userId).single();
-    setCurrentTier((data?.tier as Tier)|| "free"); };
+    const tier = await getCurrentTier();
+    setCurrentTier(tier);
+  };
   const activeTier: TierConfig = tierConfig[currentTier]
   const pdfsUploadedToday = usage.pdfs;
 
@@ -756,6 +758,7 @@ export default function AppWrapper() {
           installPrompt={installPrompt}
           handleInstall={handleInstall}
           onLogout={handleLogout}
+          onUpgrade={() => setUpgradeModal({ visible: true })}
           pdfText={pdfText}
           pdfName={pdfName}
           onExportPdf={exportPdfFromMessages}
