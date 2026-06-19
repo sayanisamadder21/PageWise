@@ -117,7 +117,7 @@ function parsePDF(file: File, resolve: (v: any) => void, reject: (e: any) => voi
       for (let i = 1; i <= totalPages; i++) {
         const page = await pdf.getPage(i);
         const content = await page.getTextContent();
-        fullText += content.items.map((item: any) => item.str).join(" ") + "\n";
+        fullText += `\n[Page ${i}]\n` + content.items.map((item: any) => item.str).join(" ") + "\n";
       }
       resolve({ text: fullText.trim(), pages: totalPages, words: fullText.trim().split(/\s+/).length });
     } catch (err) { reject(err); }
@@ -524,7 +524,10 @@ export default function AppWrapper() {
 
     const langInstruction = language !== "English" ? `\nAlways respond in ${language}.` : "";
     const systemInstruction = persona === "default" ? " " : currentP?.sys || " ";
-    const fullPrompt = systemInstruction + langInstruction + "\n\nDocument Content:\n" + pdfText.slice(0, 12000) + "\n\nUser Question: " + q;
+    const citeInstruction = currentTier !== "free"
+      ? "\nWhen making factual claims, cite the page using [p.X] inline. Only cite when confident; do not guess."
+      : "";
+    const fullPrompt = systemInstruction + langInstruction + citeInstruction + "\n\nDocument Content:\n" + pdfText.slice(0, 12000) + "\n\nUser Question: " + q;
 
     try {
       const res = await fetch(QUERY_URL, {
@@ -715,6 +718,8 @@ export default function AppWrapper() {
           onNavigate={setPage}
           onUpgrade={() => setUpgradeModal({ visible: true })}
           onReset={reset}
+          installPrompt={installPrompt}
+          handleInstall={handleInstall}
           fmt={fmt}
           onExportPdf={exportPdfFromMessages}
           chatList={chatList}

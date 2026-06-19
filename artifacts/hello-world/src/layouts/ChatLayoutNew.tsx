@@ -88,7 +88,7 @@ export default function ChatLayout({
     <div style={{
       display: "flex",
       flexDirection: "column",
-      height: "100vh",
+      height: "100dvh",
       overflow: "hidden",
       background: C.bg,
       fontFamily: "'Montserrat', sans-serif",

@@ -125,6 +125,8 @@ interface StarterLayoutProps {
   onUpgrade?: () => void;
   onNavigate?: (page: "terms" | "privacy") => void;
   onReset: () => void;
+  installPrompt: any;
+  handleInstall: () => void;
   fmt: (t: string) => string;
   onExportPdf?: (msgs: Message[], filename?: string) => void;
   // ── Chat history ──
@@ -274,7 +276,7 @@ export default function StarterLayout({
   tier, currentTier, pdfsUploadedToday, questionsUsedToday, exportsUsedToday,
   pdfName, pdfText, pdfMeta, messages, loading, streaming,
   input, setInput, persona, setPersona, language, setLanguage,
-  handleFile, send, onLogout, onUpgrade, onNavigate, onReset, fmt,
+  handleFile, send, onLogout, onUpgrade, onNavigate, onReset, installPrompt, handleInstall, fmt,
   onExportPdf, chatList, onOpenChat, currentChatId, onDeleteChat
 }: StarterLayoutProps) {
   const [view, setView]               = useState<View>(pdfText ? "chat" : "home");
@@ -386,7 +388,7 @@ export default function StarterLayout({
 
   return (
     <div style={{
-      display: "flex", height: "100vh", overflow: "hidden",
+      display: "flex", height: "100dvh", overflow: "hidden",
       fontFamily: "'Montserrat', sans-serif", background: S.chatBg,
     }}>
       <style>{`
@@ -623,7 +625,7 @@ export default function StarterLayout({
                 background: "rgba(255,140,0,0.06)", border: "1px solid rgba(255,140,0,0.12)",
                 borderRadius: 8, fontSize: 10, color: "#998877", lineHeight: 1.6,
               }}>
-                {chatList.length} / 10 chats · 14-day retention<br />
+                {chatList.length} / {tier.chatHistoryLimit === -1 ? "∞" : tier.chatHistoryLimit} chats · {tier.chatHistoryRetentionDays === -1 ? "forever" : `${tier.chatHistoryRetentionDays}-day`} retention<br />
                 <span onClick={onUpgrade} style={{ color: S.sidebarActive, fontWeight: 700, cursor: "pointer" }}>
                   Upgrade to Pro for unlimited →
                 </span>
@@ -677,7 +679,18 @@ export default function StarterLayout({
             {view === "home"     && <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>New Chat</div>}
             {view === "settings" && <div style={{ fontSize: 13, fontWeight: 700, color: C.dark }}>Settings</div>}
           </div>
-          <div style={{ flexShrink: 0 }} />
+          <div style={{ flexShrink: 0 }}>
+            {installPrompt && (
+              <button onClick={handleInstall} style={{
+                background: S.sidebarActive,
+                border: "none", borderRadius: 8,
+                padding: "6px 12px", color: "#fff",
+                fontSize: 11, fontWeight: 700, cursor: "pointer",
+                fontFamily: "'Montserrat', sans-serif",
+                whiteSpace: "nowrap",
+              }}>📲 Install</button>
+            )}
+          </div>
         </div>
 
         {/* ── HOME view ── */}
