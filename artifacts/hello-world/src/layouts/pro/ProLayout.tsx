@@ -101,7 +101,9 @@ export default function ProLayout({ onLogout }: ProLayoutProps) {
             </div>
 
             <div style={{ flex: 1, overflow: "hidden" }}>
-              {activePanelTab === "chat" ? <ChatPanel /> : <SourcesPanel />}
+              {activePanelTab === "chat"
+          ? <ChatPanel activeWorkspace={activeWorkspace} />
+          : <SourcesPanel />}
             </div>
           </div>
         )}

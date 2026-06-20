@@ -38,6 +38,7 @@ interface PdfLayoutProps {
   tier: TierConfig;
   pdfsUplodedToday: number;
   onLogout: () => void;
+  onUpgrade?: () => void;
   onNavigate?: (page: "terms" | "privacy") => void;
   // Session resume props
   hasSavedSession?: boolean;
@@ -48,7 +49,7 @@ interface PdfLayoutProps {
 
 export default function PdfLayout({
   uploading, dragOver, setDragOver, handleFile, fileRef,
-  installPrompt, handleInstall, tier, pdfsUplodedToday, onLogout,
+  installPrompt, handleInstall, tier, pdfsUplodedToday, onLogout, onUpgrade,
   onNavigate,
   hasSavedSession, savedPdfName, onResume, onClearSession,
 }: PdfLayoutProps) {
@@ -108,13 +109,12 @@ export default function PdfLayout({
                 fontWeight: 700, whiteSpace: "nowrap",
               }}>🔗 Share</button>
           )}
-          <a href="https://tally.so/r/yPzqV8" target="_blank" rel="noopener noreferrer"
-            style={{
-              background: C.orange, border: "none", borderRadius: 6,
-              padding: "5px 11px", color: C.dark, fontSize: 10,
-              cursor: "pointer", fontFamily: "'Montserrat',sans-serif",
-              fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap",
-            }}>🚀 Join Waitlist</a>
+          <button onClick={onUpgrade} style={{
+            background: C.orange, border: "none", borderRadius: 6,
+            padding: "5px 11px", color: C.dark, fontSize: 10,
+            cursor: "pointer", fontFamily: "'Montserrat',sans-serif",
+            fontWeight: 700, whiteSpace: "nowrap",
+          }}>⚡ Upgrade</button>
           <button onClick={onLogout} style={{
             background: "transparent",
             border: `1px solid ${C.orange}`,
@@ -287,15 +287,12 @@ export default function PdfLayout({
             </div>
           )}
 
-          {/* Join Waitlist */}
-          <a href="https://tally.so/r/yPzqV8" target="_blank" rel="noopener noreferrer"
-            style={{
-              display: "block", background: C.orange, borderRadius: 8,
-              padding: "10px 24px", color: C.dark, fontSize: 13,
-              fontWeight: 700, textDecoration: "none", marginBottom: 24,
-            }}>
-            🚀 Join Waitlist
-          </a>
+          <button onClick={onUpgrade} style={{
+            display: "block", background: C.orange, border: "none", borderRadius: 8,
+            padding: "10px 24px", color: C.dark, fontSize: 13,
+            fontWeight: 700, cursor: "pointer",
+            fontFamily: "'Montserrat',sans-serif", marginBottom: 24,
+          }}>⚡ Upgrade</button>
 
           {/* ── Mode cards ── */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>

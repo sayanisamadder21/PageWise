@@ -746,6 +746,7 @@ export default function AppWrapper() {
           savedPdfName={savedSession?.name || ""}
           onResume={handleResume}
           onClearSession={handleClearSession}
+          onUpgrade={() => setUpgradeModal({ visible: true })}
         />
       )}
     </>
