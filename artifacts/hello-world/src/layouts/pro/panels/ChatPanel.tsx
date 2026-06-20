@@ -1,7 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../../supabase";
-import { QUERY_URL, C } from "../../../AppNew";
+import { QUERY_URL, C, PERSONAS, LANGUAGES, ICON_PATHS } from "../../../AppNew";
 import { S } from "../ProLayout";
+
+function Icon({ name, size = 11, color = "currentColor" }: { name: string; size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+      stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+      <path d={ICON_PATHS[name]} />
+    </svg>
+  );
+}
 
 interface WorkspaceDoc {
   id: string;
@@ -50,6 +59,8 @@ export default function ChatPanel({ activeWorkspace }: ChatPanelProps) {
   const [loading, setLoading]     = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [docs, setDocs]           = useState<WorkspaceDoc[]>([]);
+  const [persona, setPersona]     = useState(PERSONAS[0].id);
+  const [language, setLanguage]   = useState("English");
   const abortRef  = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isBusy = loading || streaming;
@@ -122,7 +133,10 @@ export default function ChatPanel({ activeWorkspace }: ChatPanelProps) {
       .map(doc => `--- Document: ${doc.name} ---\n${doc.extracted_text}`)
       .join("\n\n");
 
-    const fullPrompt = CITE_INSTRUCTION
+    const currentP = PERSONAS.find(p => p.id === persona);
+    const systemInstruction = currentP ? currentP.sys + "\n\n" : "";
+    const langInstruction = language !== "English" ? `Respond in ${language}.\n\n` : "";
+    const fullPrompt = systemInstruction + langInstruction + CITE_INSTRUCTION
       + "\n\nDocument Content:\n" + combinedContext
       + "\n\nUser Question: " + q;
 
@@ -266,6 +280,62 @@ export default function ChatPanel({ activeWorkspace }: ChatPanelProps) {
         background: S.panelBg, borderTop: `1px solid ${S.panelBorder}`,
         padding: "10px 14px 14px", flexShrink: 0,
       }}>
+        {/* Mode + Lang row */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+          <span style={{
+            fontSize: 9, color: S.textMuted, letterSpacing: 3,
+            textTransform: "uppercase", fontWeight: 700, flexShrink: 0,
+          }}>Mode</span>
+          <div style={{ position: "relative", flex: 1, overflow: "hidden" }}>
+            <div style={{
+              position: "absolute", right: 0, top: 0, bottom: 0, width: 28,
+              zIndex: 2, pointerEvents: "none",
+              background: `linear-gradient(to right, transparent, ${S.panelBg})`,
+            }} />
+            <div style={{
+              display: "flex", gap: 4, overflowX: "auto", flexWrap: "nowrap",
+              scrollbarWidth: "none", msOverflowStyle: "none",
+            }}>
+              {PERSONAS.map(p => (
+                <button key={p.id} onClick={() => !isBusy && setPersona(p.id)} disabled={isBusy}
+                  style={{
+                    flexShrink: 0,
+                    background: persona === p.id ? S.goldDim : "transparent",
+                    border: `1px solid ${persona === p.id ? S.gold : S.panelBorder}`,
+                    borderRadius: 8, padding: "5px 9px",
+                    color: persona === p.id ? S.gold : S.textMid,
+                    cursor: isBusy ? "not-allowed" : "pointer",
+                    fontFamily: "'Montserrat', sans-serif",
+                    fontSize: 11, fontWeight: 600,
+                    display: "flex", alignItems: "center", gap: 4,
+                    transition: "all 0.15s",
+                    opacity: isBusy ? 0.5 : 1, whiteSpace: "nowrap",
+                  }}>
+                  <Icon name={p.icon} size={11} color={persona === p.id ? S.gold : S.textMid} />
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+            <span style={{
+              fontSize: 9, color: S.textMuted, letterSpacing: 2,
+              textTransform: "uppercase", fontWeight: 700,
+            }}>Lang</span>
+            <select value={language} onChange={e => setLanguage(e.target.value)} disabled={isBusy}
+              style={{
+                background: S.bg, border: `1px solid ${S.panelBorder}`,
+                borderRadius: 7, padding: "4px 7px",
+                fontSize: 10, fontWeight: 600, color: S.textMid,
+                fontFamily: "'Montserrat', sans-serif",
+                cursor: "pointer", outline: "none",
+                appearance: "none", WebkitAppearance: "none",
+              }}>
+              {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+          </div>
+        </div>
+
         <div style={{
           display: "flex", gap: 8, background: S.bg,
           border: `1.5px solid ${S.panelBorder}`, borderRadius: 12,
