@@ -32,7 +32,7 @@ interface ProLayoutProps {
 }
 
 export default function ProLayout({ onLogout }: ProLayoutProps) {
-  const [activeWorkspace, setActiveWorkspace] = useState("workspace-1");
+  const [activeWorkspace, setActiveWorkspace] = useState("");
   const [activePanelTab, setActivePanelTab]   = useState<PanelTab>("chat");
   const [isMobile, setIsMobile]               = useState(() => window.innerWidth < 768);
   const [activeMobileTab, setActiveMobileTab] = useState<MobileTab>("chat");

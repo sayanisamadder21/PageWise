@@ -92,13 +92,13 @@ export default function WorkspaceMiddlePanel({ activeWorkspace, isMobile = false
       }}>
         <span style={{ fontSize: 12, fontWeight: 700, color: S.textDark }}>Document</span>
         <button
-          onClick={() => !uploading && fileRef.current?.click()}
-          disabled={uploading}
+          onClick={() => !uploading && activeWorkspace && fileRef.current?.click()}
+          disabled={uploading || !activeWorkspace}
           style={{
             background: S.gold, border: "none", borderRadius: 7,
             padding: "5px 10px", color: "#fff", fontSize: 10, fontWeight: 700,
-            cursor: uploading ? "not-allowed" : "pointer",
-            fontFamily: "'Montserrat', sans-serif", opacity: uploading ? 0.6 : 1,
+            cursor: uploading || !activeWorkspace ? "not-allowed" : "pointer",
+            fontFamily: "'Montserrat', sans-serif", opacity: uploading || !activeWorkspace ? 0.6 : 1,
           }}>
           {uploading ? "Parsing…" : "＋ PDF"}
         </button>
@@ -132,12 +132,14 @@ export default function WorkspaceMiddlePanel({ activeWorkspace, isMobile = false
             Upload a PDF to get started.
           </div>
           <button
-            onClick={() => !uploading && fileRef.current?.click()}
-            disabled={uploading}
+            onClick={() => !uploading && activeWorkspace && fileRef.current?.click()}
+            disabled={uploading || !activeWorkspace}
             style={{
               marginTop: 8, background: S.gold, border: "none",
               borderRadius: 50, padding: "9px 22px", color: "#fff",
-              fontSize: 12, fontWeight: 700, cursor: "pointer",
+              fontSize: 12, fontWeight: 700,
+              cursor: uploading || !activeWorkspace ? "not-allowed" : "pointer",
+              opacity: !activeWorkspace ? 0.5 : 1,
               fontFamily: "'Montserrat', sans-serif",
               boxShadow: "0 2px 8px rgba(255,140,0,0.25)",
             }}>

@@ -39,7 +39,10 @@ export default function WorkspaceSidebar({
       .select("id, name, created_at")
       .eq("user_id", uid)
       .order("created_at", { ascending: true });
-    if (!error) setWorkspaces(data || []);
+    if (!error) {
+      setWorkspaces(data || []);
+      if (data && data.length > 0) onWorkspaceChange(data[0].id);
+    }
     setLoading(false);
   }
 
