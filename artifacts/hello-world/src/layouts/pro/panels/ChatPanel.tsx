@@ -78,6 +78,7 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
   const [currentChatTitle, setCurrentChatTitle] = useState("New Chat");
   const [showHistory, setShowHistory]         = useState(false);
   const [contextMenuChatId, setContextMenuChatId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition]       = useState<{ x: number; y: number } | null>(null);
   const [renamingChatId, setRenamingChatId]   = useState<string | null>(null);
   const [renameValue, setRenameValue]         = useState("");
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -382,15 +383,23 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
                   ) : (
                     <div
                       onClick={() => {
-                        if (isMenuOpen) { setContextMenuChatId(null); return; }
+                        if (isMenuOpen) { setContextMenuChatId(null); setMenuPosition(null); return; }
                         handleOpenChat(chat);
                       }}
-                      onMouseDown={() => {
-                        longPressTimer.current = setTimeout(() => setContextMenuChatId(chat.id), 500);
+                      onMouseDown={e => {
+                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        longPressTimer.current = setTimeout(() => {
+                          setMenuPosition({ x: rect.left + 10, y: rect.bottom });
+                          setContextMenuChatId(chat.id);
+                        }, 500);
                       }}
                       onMouseUp={() => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }}
-                      onTouchStart={() => {
-                        longPressTimer.current = setTimeout(() => setContextMenuChatId(chat.id), 500);
+                      onTouchStart={e => {
+                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        longPressTimer.current = setTimeout(() => {
+                          setMenuPosition({ x: rect.left + 10, y: rect.bottom });
+                          setContextMenuChatId(chat.id);
+                        }, 500);
                       }}
                       onTouchEnd={() => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }}
                       style={{
@@ -419,13 +428,15 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
                     </div>
                   )}
 
-                  {/* Context menu */}
-                  {isMenuOpen && (
+                  {/* Context menu — rendered fixed so it escapes the scrollable list container */}
+                  {isMenuOpen && menuPosition && (
                     <>
-                      <div onClick={() => setContextMenuChatId(null)}
+                      <div onClick={() => { setContextMenuChatId(null); setMenuPosition(null); }}
                         style={{ position: "fixed", inset: 0, zIndex: 90 }} />
                       <div style={{
-                        position: "absolute", left: 10, top: "100%",
+                        position: "fixed",
+                        left: menuPosition.x,
+                        top: Math.min(menuPosition.y, window.innerHeight - 160),
                         zIndex: 100, minWidth: 150,
                         background: S.panelBg,
                         border: `1px solid ${S.panelBorder}`,
@@ -436,7 +447,7 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
                       }}>
                         {/* Pin / Unpin */}
                         <div
-                          onClick={e => { e.stopPropagation(); handleStarChat(chat.id); setContextMenuChatId(null); }}
+                          onClick={e => { e.stopPropagation(); handleStarChat(chat.id); setContextMenuChatId(null); setMenuPosition(null); }}
                           style={{
                             display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
                             padding: "10px 14px", cursor: "pointer", fontSize: 11,
@@ -456,6 +467,7 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
                             setRenameValue(chat.title);
                             setRenamingChatId(chat.id);
                             setContextMenuChatId(null);
+                            setMenuPosition(null);
                           }}
                           style={{
                             display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
@@ -487,6 +499,7 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
                               });
                             });
                             setContextMenuChatId(null);
+                            setMenuPosition(null);
                           }}
                           style={{
                             display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
