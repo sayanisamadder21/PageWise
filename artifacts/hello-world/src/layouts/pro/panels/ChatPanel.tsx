@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "../../supabase";
-import { QUERY_URL, C } from "../../AppNew";
+import { supabase } from "../../../supabase";
+import { QUERY_URL, C } from "../../../AppNew";
 import { S } from "../ProLayout";
 
 interface WorkspaceDoc {
