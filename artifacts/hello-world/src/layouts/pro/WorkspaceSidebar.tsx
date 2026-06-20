@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "../../supabase";
 import { S } from "./ProLayout";
 
@@ -13,38 +13,18 @@ interface WorkspaceSidebarProps {
   onWorkspaceChange: (id: string) => void;
   onLogout: () => void;
   isMobile?: boolean;
+  workspaces: Workspace[];
+  workspacesLoading: boolean;
+  userId: string | null;
+  onWorkspaceCreated: () => void;
 }
 
 export default function WorkspaceSidebar({
   activeWorkspace, onWorkspaceChange, onLogout, isMobile = false,
+  workspaces, workspacesLoading, userId, onWorkspaceCreated,
 }: WorkspaceSidebarProps) {
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [creating, setCreating]     = useState(false);
-  const [newName, setNewName]       = useState("");
-  const [userId, setUserId]         = useState<string | null>(null);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) return;
-      setUserId(session.user.id);
-      fetchWorkspaces(session.user.id);
-    });
-  }, []);
-
-  async function fetchWorkspaces(uid: string) {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("workspaces")
-      .select("id, name, created_at")
-      .eq("user_id", uid)
-      .order("created_at", { ascending: true });
-    if (!error) {
-      setWorkspaces(data || []);
-      if (data && data.length > 0) onWorkspaceChange(data[0].id);
-    }
-    setLoading(false);
-  }
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName]   = useState("");
 
   async function handleCreate() {
     if (!userId) return;
@@ -55,7 +35,7 @@ export default function WorkspaceSidebar({
     if (!error) {
       setCreating(false);
       setNewName("");
-      fetchWorkspaces(userId);
+      onWorkspaceCreated();
     }
   }
 
@@ -134,7 +114,7 @@ export default function WorkspaceSidebar({
           letterSpacing: 1.5, textTransform: "uppercase", padding: "6px 4px 8px",
         }}>Workspaces</div>
 
-        {loading ? (
+        {workspacesLoading ? (
           <div style={{ padding: "12px 4px", fontSize: 11, color: S.textMuted }}>
             Loading…
           </div>

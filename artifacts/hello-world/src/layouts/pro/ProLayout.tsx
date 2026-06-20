@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
+import { supabase } from "../../supabase";
 import WorkspaceSidebar from "./WorkspaceSidebar";
 import WorkspaceMiddlePanel from "./WorkspaceMiddlePanel";
 import ChatPanel from "./panels/ChatPanel";
 import type { Message } from "./panels/ChatPanel";
 import SourcesPanel from "./panels/SourcesPanel";
+
+interface Workspace { id: string; name: string; created_at: string; }
 
 export const S = {
   sidebar:         "#0F1117",
@@ -38,8 +41,34 @@ export default function ProLayout({ onLogout }: ProLayoutProps) {
   const [isMobile, setIsMobile]               = useState(() => window.innerWidth < 768);
   const [activeMobileTab, setActiveMobileTab] = useState<MobileTab>("chat");
   const [messages, setMessages]               = useState<Message[]>([]);
+  const [workspaces, setWorkspaces]           = useState<Workspace[]>([]);
+  const [workspacesLoading, setWorkspacesLoading] = useState(true);
+  const [userId, setUserId]                   = useState<string | null>(null);
 
   useEffect(() => { setMessages([]); }, [activeWorkspace]);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return;
+      setUserId(session.user.id);
+      fetchWorkspaces(session.user.id);
+    });
+  }, []);
+
+  async function fetchWorkspaces(uid: string) {
+    setWorkspacesLoading(true);
+    const { data, error } = await supabase
+      .from("workspaces")
+      .select("id, name, created_at")
+      .eq("user_id", uid)
+      .order("created_at", { ascending: true });
+    if (!error) {
+      setWorkspaces(data || []);
+      if (data && data.length > 0)
+        setActiveWorkspace(prev => prev || data[0].id);
+    }
+    setWorkspacesLoading(false);
+  }
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -68,6 +97,10 @@ export default function ProLayout({ onLogout }: ProLayoutProps) {
             onWorkspaceChange={setActiveWorkspace}
             onLogout={onLogout}
             isMobile={isMobile}
+            workspaces={workspaces}
+            workspacesLoading={workspacesLoading}
+            userId={userId}
+            onWorkspaceCreated={() => userId && fetchWorkspaces(userId)}
           />
         )}
 
