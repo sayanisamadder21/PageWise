@@ -25,7 +25,7 @@ interface WorkspaceDoc {
   extracted_text: string;
 }
 
-interface Message {
+export interface Message {
   role: "user" | "assistant";
   text: string;
   ts: number;
@@ -33,6 +33,7 @@ interface Message {
 
 interface ChatPanelProps {
   activeWorkspace: string;
+  onMessagesChange?: (messages: Message[]) => void;
 }
 
 const CITE_INSTRUCTION =
@@ -60,7 +61,7 @@ function fmt(t: string): string {
   }).join("");
 }
 
-export default function ChatPanel({ activeWorkspace }: ChatPanelProps) {
+export default function ChatPanel({ activeWorkspace, onMessagesChange }: ChatPanelProps) {
   const [messages, setMessages]   = useState<Message[]>([]);
   const [input, setInput]         = useState("");
   const [loading, setLoading]     = useState(false);
@@ -74,7 +75,12 @@ export default function ChatPanel({ activeWorkspace }: ChatPanelProps) {
 
   useEffect(() => {
     if (activeWorkspace) fetchDocs();
+    setMessages([]);
   }, [activeWorkspace]);
+
+  useEffect(() => {
+    onMessagesChange?.(messages);
+  }, [messages, onMessagesChange]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

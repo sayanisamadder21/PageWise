@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import WorkspaceSidebar from "./WorkspaceSidebar";
 import WorkspaceMiddlePanel from "./WorkspaceMiddlePanel";
 import ChatPanel from "./panels/ChatPanel";
+import type { Message } from "./panels/ChatPanel";
 import SourcesPanel from "./panels/SourcesPanel";
 
 export const S = {
@@ -36,6 +37,9 @@ export default function ProLayout({ onLogout }: ProLayoutProps) {
   const [activePanelTab, setActivePanelTab]   = useState<PanelTab>("chat");
   const [isMobile, setIsMobile]               = useState(() => window.innerWidth < 768);
   const [activeMobileTab, setActiveMobileTab] = useState<MobileTab>("chat");
+  const [messages, setMessages]               = useState<Message[]>([]);
+
+  useEffect(() => { setMessages([]); }, [activeWorkspace]);
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -102,8 +106,8 @@ export default function ProLayout({ onLogout }: ProLayoutProps) {
 
             <div style={{ flex: 1, overflow: "hidden" }}>
               {activePanelTab === "chat"
-          ? <ChatPanel activeWorkspace={activeWorkspace} />
-          : <SourcesPanel />}
+          ? <ChatPanel activeWorkspace={activeWorkspace} onMessagesChange={setMessages} />
+          : <SourcesPanel messages={messages} activeWorkspace={activeWorkspace} />}
             </div>
           </div>
         )}
