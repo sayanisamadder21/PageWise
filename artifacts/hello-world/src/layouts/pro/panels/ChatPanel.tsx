@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../../supabase";
 import { QUERY_URL, C, PERSONAS, LANGUAGES, ICON_PATHS, SUGGESTIONS } from "../../../AppNew";
 import { S } from "../ProLayout";
+import { createChat, loadChats, openChat, saveMessage, renameChat, starChat } from "../../../services/chatService";
+import type { Chat } from "../../../services/chatService";
 
 const AUTO_PROMPTS: Record<string, string> = {
   insights:   "Extract the key insights from this document",
@@ -33,6 +35,7 @@ export interface Message {
 
 interface ChatPanelProps {
   activeWorkspace: string;
+  userId: string | null;
   onMessagesChange?: (messages: Message[]) => void;
 }
 
@@ -61,22 +64,37 @@ function fmt(t: string): string {
   }).join("");
 }
 
-export default function ChatPanel({ activeWorkspace, onMessagesChange }: ChatPanelProps) {
-  const [messages, setMessages]   = useState<Message[]>([]);
-  const [input, setInput]         = useState("");
-  const [loading, setLoading]     = useState(false);
-  const [streaming, setStreaming] = useState(false);
-  const [docs, setDocs]           = useState<WorkspaceDoc[]>([]);
-  const [persona, setPersona]     = useState(PERSONAS[0].id);
-  const [language, setLanguage]   = useState("English");
+export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }: ChatPanelProps) {
+  const [messages, setMessages]               = useState<Message[]>([]);
+  const [input, setInput]                     = useState("");
+  const [loading, setLoading]                 = useState(false);
+  const [streaming, setStreaming]             = useState(false);
+  const [docs, setDocs]                       = useState<WorkspaceDoc[]>([]);
+  const [persona, setPersona]                 = useState(PERSONAS[0].id);
+  const [language, setLanguage]               = useState("English");
+  const [currentChatId, setCurrentChatId]     = useState<string | null>(null);
+  const [chatInitialized, setChatInitialized] = useState(false);
+  const [chatList, setChatList]               = useState<Chat[]>([]);
+  const [currentChatTitle, setCurrentChatTitle] = useState("New Chat");
+  const [showHistory, setShowHistory]         = useState(false);
+  const [contextMenuChatId, setContextMenuChatId] = useState<string | null>(null);
+  const [renamingChatId, setRenamingChatId]   = useState<string | null>(null);
+  const [renameValue, setRenameValue]         = useState("");
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef  = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isBusy = loading || streaming;
 
   useEffect(() => {
-    if (activeWorkspace) fetchDocs();
+    if (!activeWorkspace) return;
     setMessages([]);
-  }, [activeWorkspace]);
+    setCurrentChatId(null);
+    setChatInitialized(false);
+    setCurrentChatTitle("New Chat");
+    setShowHistory(false);
+    fetchDocs();
+    if (userId) loadChats(userId, activeWorkspace).then(setChatList);
+  }, [activeWorkspace, userId]);
 
   useEffect(() => {
     onMessagesChange?.(messages);
@@ -94,6 +112,54 @@ export default function ChatPanel({ activeWorkspace, onMessagesChange }: ChatPan
     const fetched = data || [];
     setDocs(fetched);
     return fetched;
+  }
+
+  async function handleOpenChat(chat: Chat) {
+    setShowHistory(false);
+    if (!userId) return;
+    const restored = await openChat(chat.id, userId);
+    if (!restored) return;
+    const uiMessages: Message[] = restored.messages.map(m => ({
+      role: m.role as "user" | "assistant",
+      text: m.content,
+      ts: new Date(m.created_at).getTime(),
+    }));
+    setMessages(uiMessages);
+    setCurrentChatId(chat.id);
+    setCurrentChatTitle(chat.title);
+    setChatInitialized(true);
+    setChatList(prev => [chat, ...prev.filter(c => c.id !== chat.id)]);
+  }
+
+  function startNewChat() {
+    setMessages([]);
+    setCurrentChatId(null);
+    setChatInitialized(false);
+    setCurrentChatTitle("New Chat");
+    setShowHistory(false);
+  }
+
+  async function handleRenameChat(chatId: string, title: string) {
+    if (!userId) return;
+    const ok = await renameChat(chatId, userId, title);
+    if (ok) {
+      setChatList(prev => prev.map(c => c.id === chatId ? { ...c, title } : c));
+      if (currentChatId === chatId) setCurrentChatTitle(title);
+    }
+  }
+
+  async function handleStarChat(chatId: string) {
+    if (!userId) return;
+    const chat = chatList.find(c => c.id === chatId);
+    if (!chat) return;
+    const starred = !chat.starred;
+    const ok = await starChat(chatId, userId, starred);
+    if (ok) {
+      setChatList(prev => {
+        const updated = prev.map(c => c.id === chatId ? { ...c, starred } : c);
+        return [...updated.filter(c => c.starred), ...updated.filter(c => !c.starred)];
+      });
+    }
   }
 
   function revealWords(fullText: string) {
@@ -133,6 +199,20 @@ export default function ChatPanel({ activeWorkspace, onMessagesChange }: ChatPan
         ts: Date.now(),
       }]);
       return;
+    }
+
+    // Create chat row on first message
+    let activeChatId = currentChatId;
+    if (!chatInitialized && userId && activeWorkspace) {
+      const title = q.length <= 60 ? q : q.slice(0, 57) + "…";
+      const newChat = await createChat(userId, null, null, title, activeWorkspace);
+      if (newChat) {
+        activeChatId = newChat.id;
+        setCurrentChatId(newChat.id);
+        setCurrentChatTitle(newChat.title);
+        setChatInitialized(true);
+        setChatList(prev => [newChat, ...prev]);
+      }
     }
 
     setInput("");
@@ -185,6 +265,11 @@ export default function ChatPanel({ activeWorkspace, onMessagesChange }: ChatPan
       const fullText: string =
         data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
       setLoading(false);
+      // Save both turns to DB (fire-and-forget — don't block the word reveal)
+      if (activeChatId && userId) {
+        saveMessage(activeChatId, userId, "user", q);
+        saveMessage(activeChatId, userId, "assistant", fullText);
+      }
       revealWords(fullText);
     } catch (err: any) {
       if (err?.name === "AbortError") return;
@@ -204,6 +289,231 @@ export default function ChatPanel({ activeWorkspace, onMessagesChange }: ChatPan
       background: S.panelBg, overflow: "hidden",
     }}>
       <style>{`@keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }`}</style>
+
+      {/* Chat history bar */}
+      <div style={{
+        height: 44, display: "flex", alignItems: "center",
+        padding: "0 12px", borderBottom: `1px solid ${S.panelBorder}`,
+        background: S.panelBg, flexShrink: 0, position: "relative", gap: 8,
+      }}>
+        <button
+          onClick={() => setShowHistory(v => !v)}
+          style={{
+            flex: 1, display: "flex", alignItems: "center", gap: 6, minWidth: 0,
+            background: "none", border: "none", cursor: "pointer",
+            padding: "4px 6px", borderRadius: 7, textAlign: "left",
+          }}>
+          <span style={{
+            fontSize: 11, fontWeight: 600, color: S.textDark,
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flex: 1,
+          }}>{currentChatTitle}</span>
+          {chatList.length > 0 && (
+            <span style={{
+              background: S.goldDim, border: `1px solid rgba(255,140,0,0.3)`,
+              borderRadius: 20, padding: "1px 7px",
+              fontSize: 9, fontWeight: 700, color: S.gold, flexShrink: 0,
+            }}>{chatList.length}</span>
+          )}
+          <span style={{ fontSize: 9, color: S.textMuted, flexShrink: 0 }}>
+            {showHistory ? "▲" : "▼"}
+          </span>
+        </button>
+        <button
+          onClick={startNewChat}
+          disabled={isBusy}
+          style={{
+            background: "none", border: `1px solid ${S.panelBorder}`,
+            borderRadius: 7, padding: "4px 9px",
+            fontSize: 10, fontWeight: 700, color: S.textMid,
+            cursor: isBusy ? "not-allowed" : "pointer",
+            fontFamily: "'Montserrat', sans-serif",
+            flexShrink: 0, opacity: isBusy ? 0.5 : 1,
+          }}>＋ New</button>
+
+        {/* History dropdown */}
+        {showHistory && (
+          <div style={{
+            position: "absolute", top: 44, left: 0, right: 0,
+            background: S.panelBg, border: `1px solid ${S.panelBorder}`,
+            borderTop: "none", zIndex: 50,
+            maxHeight: 240, overflowY: "auto",
+            boxShadow: S.shadow,
+          }}>
+            {chatList.length === 0 ? (
+              <div style={{
+                padding: "14px", fontSize: 11,
+                color: S.textMuted, textAlign: "center",
+              }}>No previous chats in this workspace</div>
+            ) : chatList.map(chat => {
+              const isActive   = chat.id === currentChatId;
+              const isMenuOpen = contextMenuChatId === chat.id;
+              const isRenaming = renamingChatId === chat.id;
+              return (
+                <div key={chat.id} style={{ position: "relative" }}>
+                  {/* Inline rename */}
+                  {isRenaming ? (
+                    <div style={{ padding: "6px 10px", borderBottom: `1px solid ${S.panelBorder}` }}>
+                      <input
+                        autoFocus
+                        value={renameValue}
+                        onChange={e => setRenameValue(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter") {
+                            const t = renameValue.trim();
+                            if (t) handleRenameChat(chat.id, t);
+                            setRenamingChatId(null);
+                          }
+                          if (e.key === "Escape") setRenamingChatId(null);
+                        }}
+                        onBlur={() => {
+                          const t = renameValue.trim();
+                          if (t) handleRenameChat(chat.id, t);
+                          setRenamingChatId(null);
+                        }}
+                        style={{
+                          width: "100%", background: S.bg,
+                          border: `1px solid ${S.gold}`,
+                          borderRadius: 6, padding: "5px 8px",
+                          color: S.textDark, fontSize: 11, outline: "none",
+                          fontFamily: "'Montserrat', sans-serif",
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => {
+                        if (isMenuOpen) { setContextMenuChatId(null); return; }
+                        handleOpenChat(chat);
+                      }}
+                      onMouseDown={() => {
+                        longPressTimer.current = setTimeout(() => setContextMenuChatId(chat.id), 500);
+                      }}
+                      onMouseUp={() => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }}
+                      onTouchStart={() => {
+                        longPressTimer.current = setTimeout(() => setContextMenuChatId(chat.id), 500);
+                      }}
+                      onTouchEnd={() => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }}
+                      style={{
+                        padding: "9px 14px", cursor: "pointer",
+                        borderBottom: `1px solid ${S.panelBorder}`,
+                        background: isActive ? S.goldDim : "transparent",
+                        userSelect: "none", transition: "background 0.1s",
+                        display: "flex", alignItems: "center", gap: 6,
+                      }}
+                      onMouseEnter={e => {
+                        if (!isActive) (e.currentTarget as HTMLElement).style.background = S.bg;
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget as HTMLElement).style.background = isActive ? S.goldDim : "transparent";
+                      }}>
+                      {chat.starred && <span style={{ fontSize: 10, flexShrink: 0 }}>⭐</span>}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontSize: 11, fontWeight: isActive ? 700 : 600, color: S.textDark,
+                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                        }}>{chat.title}</div>
+                        <div style={{ fontSize: 9, color: S.textMuted, marginTop: 2 }}>
+                          {new Date(chat.last_accessed_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Context menu */}
+                  {isMenuOpen && (
+                    <>
+                      <div onClick={() => setContextMenuChatId(null)}
+                        style={{ position: "fixed", inset: 0, zIndex: 90 }} />
+                      <div style={{
+                        position: "absolute", left: 10, top: "100%",
+                        zIndex: 100, minWidth: 150,
+                        background: S.panelBg,
+                        border: `1px solid ${S.panelBorder}`,
+                        borderRadius: 10,
+                        boxShadow: S.shadow,
+                        overflow: "hidden",
+                        animation: "fadeIn 0.12s ease",
+                      }}>
+                        {/* Pin / Unpin */}
+                        <div
+                          onClick={e => { e.stopPropagation(); handleStarChat(chat.id); setContextMenuChatId(null); }}
+                          style={{
+                            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+                            padding: "10px 14px", cursor: "pointer", fontSize: 11,
+                            fontWeight: 600, color: S.gold,
+                            fontFamily: "'Montserrat', sans-serif", transition: "background 0.1s",
+                            borderBottom: `1px solid ${S.panelBorder}`,
+                          }}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = S.goldDim}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                          <span>{chat.starred ? "Unpin" : "Pin to top"}</span>
+                          <span style={{ fontSize: 13 }}>{chat.starred ? "★" : "☆"}</span>
+                        </div>
+                        {/* Rename */}
+                        <div
+                          onClick={e => {
+                            e.stopPropagation();
+                            setRenameValue(chat.title);
+                            setRenamingChatId(chat.id);
+                            setContextMenuChatId(null);
+                          }}
+                          style={{
+                            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+                            padding: "10px 14px", cursor: "pointer", fontSize: 11,
+                            fontWeight: 600, color: S.textMid,
+                            fontFamily: "'Montserrat', sans-serif", transition: "background 0.1s",
+                            borderBottom: `1px solid ${S.panelBorder}`,
+                          }}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = S.bg}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                          <span>Rename</span>
+                          <svg width={13} height={13} viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                        </div>
+                        {/* Delete */}
+                        <div
+                          onClick={e => {
+                            e.stopPropagation();
+                            if (!userId) return;
+                            import("../../../services/chatService").then(({ deleteChat }) => {
+                              deleteChat(chat.id, userId).then(ok => {
+                                if (ok) {
+                                  setChatList(prev => prev.filter(c => c.id !== chat.id));
+                                  if (currentChatId === chat.id) startNewChat();
+                                }
+                              });
+                            });
+                            setContextMenuChatId(null);
+                          }}
+                          style={{
+                            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+                            padding: "10px 14px", cursor: "pointer", fontSize: 11,
+                            fontWeight: 600, color: "#FF5555",
+                            fontFamily: "'Montserrat', sans-serif", transition: "background 0.1s",
+                          }}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,60,60,0.08)"}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                          <span>Delete</span>
+                          <svg width={13} height={13} viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 6h18" />
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                            <path d="M10 11v6" /><path d="M14 11v6" />
+                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                          </svg>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {/* Messages */}
       <div style={{

@@ -134,6 +134,8 @@ interface StarterLayoutProps {
   onOpenChat: (chatId: string) => void;
   currentChatId: string | null;
   onDeleteChat: (chatId: string) => void;
+  onRenameChat: (chatId: string, title: string) => void;
+  onStarChat: (chatId: string) => void;
 }
 
 const NAV_ITEMS = [
@@ -277,7 +279,7 @@ export default function StarterLayout({
   pdfName, pdfText, pdfMeta, messages, loading, streaming,
   input, setInput, persona, setPersona, language, setLanguage,
   handleFile, send, onLogout, onUpgrade, onNavigate, onReset, installPrompt, handleInstall, fmt,
-  onExportPdf, chatList, onOpenChat, currentChatId, onDeleteChat
+  onExportPdf, chatList, onOpenChat, currentChatId, onDeleteChat, onRenameChat, onStarChat
 }: StarterLayoutProps) {
   const [view, setView]               = useState<View>(pdfText ? "chat" : "home");
   const [activeNav, setActiveNav]     = useState("documents");
@@ -286,6 +288,8 @@ export default function StarterLayout({
   const [copied, setCopied]           = useState<number | null>(null);
   const [hoveredChatId, setHoveredChatId] = useState<string | null>(null);
   const [contextMenuChatId, setContextMenuChatId] = useState<string | null>(null);
+  const [renamingChatId, setRenamingChatId]       = useState<string | null>(null);
+  const [renameValue, setRenameValue]             = useState("");
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileRef   = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -519,54 +523,88 @@ export default function StarterLayout({
                 </div>
               ) : (
                 chatList.map(chat => {
-                  const isActive = currentChatId === chat.id;
-                  const isMenu   = contextMenuChatId === chat.id;
+                  const isActive   = currentChatId === chat.id;
+                  const isMenu     = contextMenuChatId === chat.id;
+                  const isRenaming = renamingChatId === chat.id;
                   return (
                     <div key={chat.id} style={{ position: "relative" }}>
-                      <div className="chat-item"
-                        onClick={() => {
-                          if (isMenu) { setContextMenuChatId(null); return; }
-                          handleSelectChat(chat.id);
-                        }}
-                        onMouseEnter={() => setHoveredChatId(chat.id)}
-                        onMouseLeave={() => setHoveredChatId(null)}
-                        onMouseDown={() => {
-                          longPressTimer.current = setTimeout(() => {
-                            setContextMenuChatId(chat.id);
-                          }, 500);
-                        }}
-                        onMouseUp={() => {
-                          if (longPressTimer.current) clearTimeout(longPressTimer.current);
-                        }}
-                        onTouchStart={() => {
-                          longPressTimer.current = setTimeout(() => {
-                            setContextMenuChatId(chat.id);
-                          }, 500);
-                        }}
-                        onTouchEnd={() => {
-                          if (longPressTimer.current) clearTimeout(longPressTimer.current);
-                        }}
-                        style={{
-                          padding: "8px 12px", borderRadius: 8, marginBottom: 2, cursor: "pointer",
-                          userSelect: "none",
-                          background: isActive ? "rgba(255,140,0,0.08)" : "transparent",
-                          borderLeft: isActive ? `2px solid ${S.sidebarActive}` : "2px solid transparent",
-                          transition: "background 0.15s",
-                          display: "flex", alignItems: "center", gap: 6,
-                        }}>
-                        {/* Title + time */}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{
-                            fontSize: 12, fontWeight: isActive ? 700 : 500,
-                            color: isActive ? S.sidebarActive : S.sidebarText,
-                            marginBottom: 2, whiteSpace: "nowrap",
-                            overflow: "hidden", textOverflow: "ellipsis",
-                          }}>{chat.title}</div>
-                          <div style={{ fontSize: 10, color: "#665E52" }}>
-                            {timeAgo(chat.last_accessed_at)}
+                      {/* ── Inline rename input ── */}
+                      {isRenaming ? (
+                        <div style={{ padding: "6px 10px" }}>
+                          <input
+                            autoFocus
+                            value={renameValue}
+                            onChange={e => setRenameValue(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === "Enter") {
+                                const t = renameValue.trim();
+                                if (t) onRenameChat(chat.id, t);
+                                setRenamingChatId(null);
+                              }
+                              if (e.key === "Escape") setRenamingChatId(null);
+                            }}
+                            onBlur={() => {
+                              const t = renameValue.trim();
+                              if (t) onRenameChat(chat.id, t);
+                              setRenamingChatId(null);
+                            }}
+                            style={{
+                              width: "100%", background: "rgba(255,255,255,0.07)",
+                              border: `1px solid ${S.sidebarActive}`,
+                              borderRadius: 6, padding: "5px 8px",
+                              color: "#fff", fontSize: 12, outline: "none",
+                              fontFamily: "'Montserrat', sans-serif",
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="chat-item"
+                          onClick={() => {
+                            if (isMenu) { setContextMenuChatId(null); return; }
+                            handleSelectChat(chat.id);
+                          }}
+                          onMouseEnter={() => setHoveredChatId(chat.id)}
+                          onMouseLeave={() => setHoveredChatId(null)}
+                          onMouseDown={() => {
+                            longPressTimer.current = setTimeout(() => {
+                              setContextMenuChatId(chat.id);
+                            }, 500);
+                          }}
+                          onMouseUp={() => {
+                            if (longPressTimer.current) clearTimeout(longPressTimer.current);
+                          }}
+                          onTouchStart={() => {
+                            longPressTimer.current = setTimeout(() => {
+                              setContextMenuChatId(chat.id);
+                            }, 500);
+                          }}
+                          onTouchEnd={() => {
+                            if (longPressTimer.current) clearTimeout(longPressTimer.current);
+                          }}
+                          style={{
+                            padding: "8px 12px", borderRadius: 8, marginBottom: 2, cursor: "pointer",
+                            userSelect: "none",
+                            background: isActive ? "rgba(255,140,0,0.08)" : "transparent",
+                            borderLeft: isActive ? `2px solid ${S.sidebarActive}` : "2px solid transparent",
+                            transition: "background 0.15s",
+                            display: "flex", alignItems: "center", gap: 6,
+                          }}>
+                          {chat.starred && (
+                            <span style={{ fontSize: 10, flexShrink: 0 }}>⭐</span>
+                          )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{
+                              fontSize: 12, fontWeight: isActive ? 700 : 500,
+                              color: isActive ? S.sidebarActive : S.sidebarText,
+                              marginBottom: 2, whiteSpace: "nowrap",
+                              overflow: "hidden", textOverflow: "ellipsis",
+                            }}>{chat.title}</div>
+                            <div style={{ fontSize: 10, color: "#665E52" }}>
+                              {timeAgo(chat.last_accessed_at)}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* ── Context menu (long-press) ── */}
                       {isMenu && (
@@ -577,7 +615,7 @@ export default function StarterLayout({
                           />
                           <div style={{
                             position: "absolute", left: 12, top: "100%",
-                            zIndex: 100, minWidth: 140,
+                            zIndex: 100, minWidth: 150,
                             background: "#2A221A",
                             border: `1px solid ${S.sidebarBorder}`,
                             borderRadius: 10,
@@ -585,6 +623,54 @@ export default function StarterLayout({
                             overflow: "hidden",
                             animation: "fadeIn 0.12s ease",
                           }}>
+                            {/* Star / Unstar */}
+                            <div
+                              onClick={e => {
+                                e.stopPropagation();
+                                onStarChat(chat.id);
+                                setContextMenuChatId(null);
+                              }}
+                              style={{
+                                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+                                padding: "10px 14px", cursor: "pointer", fontSize: 12,
+                                fontWeight: 600, color: S.sidebarActive,
+                                fontFamily: "'Montserrat', sans-serif",
+                                transition: "background 0.1s",
+                                borderBottom: `1px solid ${S.sidebarBorder}`,
+                              }}
+                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,140,0,0.10)"}
+                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+                            >
+                              <span>{chat.starred ? "Unpin" : "Pin to top"}</span>
+                              <span style={{ fontSize: 13 }}>{chat.starred ? "★" : "☆"}</span>
+                            </div>
+                            {/* Rename */}
+                            <div
+                              onClick={e => {
+                                e.stopPropagation();
+                                setRenameValue(chat.title);
+                                setRenamingChatId(chat.id);
+                                setContextMenuChatId(null);
+                              }}
+                              style={{
+                                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+                                padding: "10px 14px", cursor: "pointer", fontSize: 12,
+                                fontWeight: 600, color: S.sidebarText,
+                                fontFamily: "'Montserrat', sans-serif",
+                                transition: "background 0.1s",
+                                borderBottom: `1px solid ${S.sidebarBorder}`,
+                              }}
+                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"}
+                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+                            >
+                              <span>Rename</span>
+                              <svg width={13} height={13} viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                              </svg>
+                            </div>
+                            {/* Delete */}
                             <div
                               onClick={e => {
                                 e.stopPropagation();

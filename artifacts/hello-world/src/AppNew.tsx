@@ -430,15 +430,34 @@ export default function AppWrapper() {
   };
 
   const handleDeleteChat = async (chatId: string) => {
-  const { deleteChat } = await import('./services/chatService');
-  await deleteChat(chatId, session.user.id);
-  setChatList(prev => prev.filter(c => c.id !== chatId));
-  if (currentChatId === chatId) {
-    setCurrentChatId(null);
-    reset();
-    // go back to home
-  }
-};
+    const { deleteChat } = await import('./services/chatService');
+    await deleteChat(chatId, session.user.id);
+    setChatList(prev => prev.filter(c => c.id !== chatId));
+    if (currentChatId === chatId) {
+      setCurrentChatId(null);
+      reset();
+    }
+  };
+
+  const handleRenameChat = async (chatId: string, title: string) => {
+    const { renameChat } = await import('./services/chatService');
+    const ok = await renameChat(chatId, session.user.id, title);
+    if (ok) setChatList(prev => prev.map(c => c.id === chatId ? { ...c, title } : c));
+  };
+
+  const handleStarChat = async (chatId: string) => {
+    const { starChat } = await import('./services/chatService');
+    const chat = chatList.find(c => c.id === chatId);
+    if (!chat) return;
+    const starred = !chat.starred;
+    const ok = await starChat(chatId, session.user.id, starred);
+    if (ok) {
+      setChatList(prev => {
+        const updated = prev.map(c => c.id === chatId ? { ...c, starred } : c);
+        return [...updated.filter(c => c.starred), ...updated.filter(c => !c.starred)];
+      });
+    }
+  };
 
   // Word-by-word streaming reveal
   const revealWords = (fullText: string) => {
@@ -694,6 +713,8 @@ export default function AppWrapper() {
           onOpenChat={handleOpenChat}
           currentChatId={currentChatId}
           onDeleteChat={handleDeleteChat}
+          onRenameChat={handleRenameChat}
+          onStarChat={handleStarChat}
         />
       ) : hasPDF ? (
         <ChatLayout

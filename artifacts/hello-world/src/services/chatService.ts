@@ -11,6 +11,8 @@ export interface Chat {
   pdf_name: string | null;
   pdf_text?: string | null;
   pdf_char_count: number | null;
+  workspace_id?: string | null;
+  starred: boolean;
   created_at: string;
   last_accessed_at: string;
 }
@@ -35,9 +37,10 @@ export interface RestoredChat {
 // ============================================
 export async function createChat(
   userId: string,
-  pdfName: string,
-  pdfText: string,
-  title?: string
+  pdfName: string | null,
+  pdfText: string | null,
+  title?: string,
+  workspaceId?: string | null,
 ): Promise<Chat | null> {
   const { data, error } = await supabase
     .from('chats')
@@ -47,6 +50,7 @@ export async function createChat(
       pdf_name: pdfName,
       pdf_text: pdfText,
       last_accessed_at: new Date().toISOString(),
+      ...(workspaceId ? { workspace_id: workspaceId } : {}),
     })
     .select()
     .single();
@@ -67,12 +71,20 @@ export async function createChat(
 // LOAD CHATS (sidebar list)
 // Sorted by last_accessed_at descending
 // ============================================
-export async function loadChats(userId: string): Promise<Chat[]> {
-  const { data, error } = await supabase
+export async function loadChats(
+  userId: string,
+  workspaceId?: string | null,
+): Promise<Chat[]> {
+  const base = supabase
     .from('chats')
-    .select('id, user_id, title, pdf_name, pdf_char_count, created_at, last_accessed_at')
+    .select('id, user_id, title, pdf_name, pdf_char_count, created_at, last_accessed_at, workspace_id, starred')
     .eq('user_id', userId)
+    .order('starred', { ascending: false })
     .order('last_accessed_at', { ascending: false });
+
+  const { data, error } = await (workspaceId
+    ? base.eq('workspace_id', workspaceId)
+    : base.is('workspace_id', null));
 
   if (error) {
     console.error('loadChats error:', error);
@@ -198,4 +210,46 @@ export async function getChatCount(userId: string): Promise<number> {
   }
 
   return count || 0;
+}
+
+// ============================================
+// RENAME CHAT
+// ============================================
+export async function renameChat(
+  chatId: string,
+  userId: string,
+  title: string,
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('chats')
+    .update({ title })
+    .eq('id', chatId)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('renameChat error:', error);
+    return false;
+  }
+  return true;
+}
+
+// ============================================
+// STAR / UNSTAR CHAT
+// ============================================
+export async function starChat(
+  chatId: string,
+  userId: string,
+  starred: boolean,
+): Promise<boolean> {
+  const { error } = await supabase
+    .from('chats')
+    .update({ starred })
+    .eq('id', chatId)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('starChat error:', error);
+    return false;
+  }
+  return true;
 }
