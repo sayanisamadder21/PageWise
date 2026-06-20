@@ -1,7 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../../supabase";
-import { QUERY_URL, C, PERSONAS, LANGUAGES, ICON_PATHS } from "../../../AppNew";
+import { QUERY_URL, C, PERSONAS, LANGUAGES, ICON_PATHS, SUGGESTIONS } from "../../../AppNew";
 import { S } from "../ProLayout";
+
+const AUTO_PROMPTS: Record<string, string> = {
+  insights:   "Extract the key insights from this document",
+  studynotes: "Generate comprehensive study notes from this document",
+  examgen:    "Generate exam questions from this document",
+  summarizer: "Give me a TL;DR summary in 5 bullet points",
+};
 
 function Icon({ name, size = 11, color = "currentColor" }: { name: string; size?: number; color?: string }) {
   return (
@@ -212,6 +219,28 @@ export default function ChatPanel({ activeWorkspace }: ChatPanelProps) {
                 ? "Upload a PDF in the Document panel to start chatting."
                 : `${docs.length} document${docs.length > 1 ? "s" : ""} loaded. Ask a question below.`}
             </div>
+
+            {docs.length > 0 && !loading && (
+              <div style={{ marginTop: 16, width: "100%", maxWidth: 320 }}>
+                <div style={{
+                  fontSize: 9, fontWeight: 700, color: S.textMuted,
+                  letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 8,
+                }}>Try asking</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
+                  {SUGGESTIONS.map((q, i) => (
+                    <button key={i} onClick={() => !isBusy && send(q)} disabled={isBusy}
+                      style={{
+                        background: S.bg, border: `1px solid ${S.panelBorder}`,
+                        borderRadius: 20, padding: "7px 14px",
+                        fontSize: 11, color: S.textMid,
+                        cursor: isBusy ? "not-allowed" : "pointer",
+                        fontFamily: "'Montserrat', sans-serif", fontWeight: 500,
+                        transition: "all 0.15s", opacity: isBusy ? 0.5 : 1,
+                      }}>{q}</button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -297,7 +326,11 @@ export default function ChatPanel({ activeWorkspace }: ChatPanelProps) {
               scrollbarWidth: "none", msOverflowStyle: "none",
             }}>
               {PERSONAS.map(p => (
-                <button key={p.id} onClick={() => !isBusy && setPersona(p.id)} disabled={isBusy}
+                <button key={p.id} onClick={() => {
+                  if (isBusy) return;
+                  setPersona(p.id);
+                  if (AUTO_PROMPTS[p.id] && docs.length > 0) send(AUTO_PROMPTS[p.id]);
+                }} disabled={isBusy}
                   style={{
                     flexShrink: 0,
                     background: persona === p.id ? S.goldDim : "transparent",
