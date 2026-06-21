@@ -42,6 +42,22 @@ interface ChatPanelProps {
 const CITE_INSTRUCTION =
   "\nWhen making factual claims, cite the page using [p.X] inline. Only cite when confident; do not guess.";
 
+interface CustomPersona {
+  id: string;
+  name: string;
+  instruction: string;
+}
+
+const PERSONA_TEMPLATES: { id: string; name: string; instruction: string }[] = [
+  { id: "research_reviewer", name: "Research Paper Reviewer", instruction: "Act as a peer reviewer for this research paper. Summarize the key findings, critically assess methodological limitations or gaps, and suggest promising directions for future research." },
+  { id: "exec_briefing",     name: "Executive Briefing",       instruction: "Summarize this document for a senior executive with limited time. Lead with the decisions that need to be made, then key risks and opportunities — skip background detail unless it's essential to a decision." },
+  { id: "meeting_prep",      name: "Meeting Prep Assistant",   instruction: "Prepare this document for an upcoming meeting. Extract action items and deadlines, surface open questions, and suggest a short list of discussion points." },
+  { id: "compliance",        name: "Compliance Checker",       instruction: "Review this document for compliance requirements and obligations. Flag anything that appears missing, unclear, or inconsistent with standard compliance expectations." },
+  { id: "content_repurpose", name: "Content Repurposer",       instruction: "Turn this document into reusable content: a blog post outline, a handful of LinkedIn post ideas, and a short newsletter summary." },
+  { id: "marketing",         name: "Marketing Strategist",     instruction: "Analyze this document from a marketing perspective. Identify customer pain points it addresses, potential unique selling points, and marketing angles worth exploring." },
+  { id: "blank",             name: "Start from scratch",       instruction: "" },
+];
+
 function fmt(t: string): string {
   return t.split("\n").map(raw => {
     let line = raw
@@ -81,6 +97,17 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
   const [menuPosition, setMenuPosition]       = useState<{ x: number; y: number } | null>(null);
   const [renamingChatId, setRenamingChatId]   = useState<string | null>(null);
   const [renameValue, setRenameValue]         = useState("");
+  // Custom personas
+  const [customPersonas, setCustomPersonas]   = useState<CustomPersona[]>([]);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createName, setCreateName]           = useState("");
+  const [createInstruction, setCreateInstruction] = useState("");
+  const [selectedTemplate, setSelectedTemplate]   = useState<string | null>(null);
+  const [savingPersona, setSavingPersona]     = useState(false);
+  const [personaMenuId, setPersonaMenuId]     = useState<string | null>(null);
+  const [personaMenuPos, setPersonaMenuPos]   = useState<{ x: number; y: number } | null>(null);
+  const [renamingPersonaId, setRenamingPersonaId] = useState<string | null>(null);
+  const [renamePersonaValue, setRenamePersonaValue] = useState("");
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef  = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -104,6 +131,16 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    if (!userId) return;
+    supabase
+      .from("custom_personas")
+      .select("id, name, instruction")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .then(({ data }) => setCustomPersonas(data || []));
+  }, [userId]);
 
   async function fetchDocs(): Promise<WorkspaceDoc[]> {
     const { data } = await supabase
@@ -161,6 +198,42 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
         return [...updated.filter(c => c.starred), ...updated.filter(c => !c.starred)];
       });
     }
+  }
+
+  async function handleSavePersona() {
+    if (!userId || !createName.trim() || !createInstruction.trim()) return;
+    setSavingPersona(true);
+    const { data, error } = await supabase
+      .from("custom_personas")
+      .insert({ user_id: userId, name: createName.trim(), instruction: createInstruction.trim() })
+      .select("id, name, instruction")
+      .single();
+    if (!error && data) {
+      setCustomPersonas(prev => [...prev, data]);
+      setPersona(data.id);
+      setShowCreateModal(false);
+      setCreateName("");
+      setCreateInstruction("");
+      setSelectedTemplate(null);
+    }
+    setSavingPersona(false);
+  }
+
+  async function handleDeletePersona(id: string) {
+    if (!userId) return;
+    await supabase.from("custom_personas").delete().eq("id", id).eq("user_id", userId);
+    setCustomPersonas(prev => prev.filter(p => p.id !== id));
+    if (persona === id) setPersona(PERSONAS[0].id);
+  }
+
+  async function handleRenamePersona(id: string, name: string) {
+    if (!userId || !name.trim()) return;
+    const { error } = await supabase
+      .from("custom_personas")
+      .update({ name: name.trim() })
+      .eq("id", id)
+      .eq("user_id", userId);
+    if (!error) setCustomPersonas(prev => prev.map(p => p.id === id ? { ...p, name: name.trim() } : p));
   }
 
   function revealWords(fullText: string) {
@@ -227,8 +300,9 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
       .map(doc => `--- Document: ${doc.name} ---\n${doc.extracted_text}`)
       .join("\n\n");
 
-    const currentP = PERSONAS.find(p => p.id === persona);
-    const systemInstruction = currentP ? currentP.sys + "\n\n" : "";
+    const builtInP = PERSONAS.find(p => p.id === persona);
+    const customP  = customPersonas.find(p => p.id === persona);
+    const systemInstruction = ((builtInP?.sys ?? customP?.instruction) ?? "") + "\n\n";
     const langInstruction = language !== "English" ? `Respond in ${language}.\n\n` : "";
     const fullPrompt = systemInstruction + langInstruction + CITE_INSTRUCTION
       + "\n\nDocument Content:\n" + combinedContext
@@ -677,6 +751,93 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
                   {p.label}
                 </button>
               ))}
+              {/* Custom persona pills */}
+              {customPersonas.map(cp => {
+                const isActive   = persona === cp.id;
+                const isRenaming = renamingPersonaId === cp.id;
+                return isRenaming ? (
+                  <input
+                    key={cp.id}
+                    autoFocus
+                    value={renamePersonaValue}
+                    onChange={e => setRenamePersonaValue(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") {
+                        const t = renamePersonaValue.trim();
+                        if (t) handleRenamePersona(cp.id, t);
+                        setRenamingPersonaId(null);
+                      }
+                      if (e.key === "Escape") setRenamingPersonaId(null);
+                    }}
+                    onBlur={() => {
+                      const t = renamePersonaValue.trim();
+                      if (t) handleRenamePersona(cp.id, t);
+                      setRenamingPersonaId(null);
+                    }}
+                    style={{
+                      flexShrink: 0, width: 110,
+                      background: S.bg, border: `1px solid ${S.gold}`,
+                      borderRadius: 8, padding: "5px 9px",
+                      color: S.textDark, fontSize: 11, outline: "none",
+                      fontFamily: "'Montserrat', sans-serif",
+                    }}
+                  />
+                ) : (
+                  <button
+                    key={cp.id}
+                    onClick={() => { if (!isBusy) setPersona(cp.id); }}
+                    onMouseDown={e => {
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      longPressTimer.current = setTimeout(() => {
+                        setPersonaMenuPos({ x: rect.left, y: rect.bottom + 4 });
+                        setPersonaMenuId(cp.id);
+                      }, 500);
+                    }}
+                    onMouseUp={() => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }}
+                    onTouchStart={e => {
+                      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                      longPressTimer.current = setTimeout(() => {
+                        setPersonaMenuPos({ x: rect.left, y: rect.bottom + 4 });
+                        setPersonaMenuId(cp.id);
+                      }, 500);
+                    }}
+                    onTouchEnd={() => { if (longPressTimer.current) clearTimeout(longPressTimer.current); }}
+                    disabled={isBusy}
+                    style={{
+                      flexShrink: 0,
+                      background: isActive ? S.goldDim : "transparent",
+                      border: `1px solid ${isActive ? S.gold : S.panelBorder}`,
+                      borderRadius: 8, padding: "5px 9px",
+                      color: isActive ? S.gold : S.textMid,
+                      cursor: isBusy ? "not-allowed" : "pointer",
+                      fontFamily: "'Montserrat', sans-serif",
+                      fontSize: 11, fontWeight: 600,
+                      display: "flex", alignItems: "center", gap: 4,
+                      transition: "all 0.15s",
+                      opacity: isBusy ? 0.5 : 1, whiteSpace: "nowrap",
+                    }}>
+                    ✦ {cp.name}
+                  </button>
+                );
+              })}
+              {/* Create custom mode */}
+              <button
+                onClick={() => { setShowCreateModal(true); setSelectedTemplate(null); setCreateName(""); setCreateInstruction(""); }}
+                disabled={isBusy}
+                style={{
+                  flexShrink: 0,
+                  background: "transparent",
+                  border: `1px dashed ${S.panelBorder}`,
+                  borderRadius: 8, padding: "5px 9px",
+                  color: S.textMuted,
+                  cursor: isBusy ? "not-allowed" : "pointer",
+                  fontFamily: "'Montserrat', sans-serif",
+                  fontSize: 11, fontWeight: 600,
+                  transition: "all 0.15s",
+                  opacity: isBusy ? 0.5 : 1, whiteSpace: "nowrap",
+                }}>
+                ＋
+              </button>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
@@ -747,6 +908,196 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
           </div>
         </div>
       </div>
+
+      {/* Persona context menu (long-press on custom pill) */}
+      {personaMenuId && personaMenuPos && customPersonas.some(p => p.id === personaMenuId) && (
+        <>
+          <div onClick={() => { setPersonaMenuId(null); setPersonaMenuPos(null); }}
+            style={{ position: "fixed", inset: 0, zIndex: 90 }} />
+          <div style={{
+            position: "fixed",
+            left: personaMenuPos.x,
+            top: Math.min(personaMenuPos.y, window.innerHeight - 110),
+            zIndex: 100, minWidth: 150,
+            background: S.panelBg, border: `1px solid ${S.panelBorder}`,
+            borderRadius: 10, boxShadow: S.shadow, overflow: "hidden",
+          }}>
+            <div
+              onClick={e => {
+                e.stopPropagation();
+                const cp = customPersonas.find(p => p.id === personaMenuId)!;
+                setRenamePersonaValue(cp.name);
+                setRenamingPersonaId(cp.id);
+                setPersonaMenuId(null);
+                setPersonaMenuPos(null);
+              }}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+                padding: "10px 14px", cursor: "pointer", fontSize: 11,
+                fontWeight: 600, color: S.textMid,
+                fontFamily: "'Montserrat', sans-serif", transition: "background 0.1s",
+                borderBottom: `1px solid ${S.panelBorder}`,
+              }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = S.bg}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+              <span>Rename</span>
+              <svg width={13} height={13} viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </div>
+            <div
+              onClick={e => {
+                e.stopPropagation();
+                handleDeletePersona(personaMenuId!);
+                setPersonaMenuId(null);
+                setPersonaMenuPos(null);
+              }}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+                padding: "10px 14px", cursor: "pointer", fontSize: 11,
+                fontWeight: 600, color: "#FF5555",
+                fontFamily: "'Montserrat', sans-serif", transition: "background 0.1s",
+              }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,60,60,0.08)"}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+              <span>Delete</span>
+              <svg width={13} height={13} viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 6h18" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6" /><path d="M14 11v6" />
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+              </svg>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Create custom mode modal */}
+      {showCreateModal && (
+        <>
+          <div onClick={() => setShowCreateModal(false)}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200 }} />
+          <div style={{
+            position: "fixed", top: "50%", left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: "min(420px, 92vw)", maxHeight: "80vh",
+            background: S.panelBg, borderRadius: 16,
+            border: `1px solid ${S.panelBorder}`,
+            boxShadow: "0 12px 40px rgba(0,0,0,0.35)",
+            zIndex: 201, overflow: "hidden",
+            display: "flex", flexDirection: "column",
+          }}>
+            {/* Header */}
+            <div style={{ padding: "18px 18px 0", flexShrink: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: S.textDark, marginBottom: 4 }}>
+                Create Custom Mode
+              </div>
+              <div style={{ fontSize: 11, color: S.textMuted, marginBottom: 14 }}>
+                Pick a template to pre-fill, or start blank.
+              </div>
+              {/* Template chips */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 16 }}>
+                {PERSONA_TEMPLATES.map(t => (
+                  <button key={t.id}
+                    onClick={() => {
+                      setSelectedTemplate(t.id);
+                      setCreateName(t.id === "blank" ? "" : t.name);
+                      setCreateInstruction(t.instruction);
+                    }}
+                    style={{
+                      padding: "5px 10px", fontSize: 10, fontWeight: 600,
+                      borderRadius: 20, cursor: "pointer",
+                      fontFamily: "'Montserrat', sans-serif",
+                      border: `1px solid ${selectedTemplate === t.id ? S.gold : S.panelBorder}`,
+                      background: selectedTemplate === t.id ? S.goldDim : S.bg,
+                      color: selectedTemplate === t.id ? S.gold : S.textMid,
+                      transition: "all 0.12s",
+                    }}>
+                    {t.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Body */}
+            <div style={{ padding: "0 18px 16px", overflowY: "auto", flex: 1 }}>
+              <div style={{ marginBottom: 12 }}>
+                <div style={{
+                  fontSize: 10, fontWeight: 700, color: S.textMuted,
+                  letterSpacing: 1, textTransform: "uppercase", marginBottom: 5,
+                }}>Name</div>
+                <input
+                  value={createName}
+                  onChange={e => setCreateName(e.target.value)}
+                  placeholder="e.g. My Legal Reviewer"
+                  maxLength={50}
+                  style={{
+                    width: "100%", background: S.bg,
+                    border: `1px solid ${S.panelBorder}`,
+                    borderRadius: 8, padding: "8px 10px",
+                    color: S.textDark, fontSize: 12,
+                    fontFamily: "'Montserrat', sans-serif",
+                    outline: "none", boxSizing: "border-box",
+                  }}
+                />
+              </div>
+              <div>
+                <div style={{
+                  fontSize: 10, fontWeight: 700, color: S.textMuted,
+                  letterSpacing: 1, textTransform: "uppercase", marginBottom: 5,
+                }}>Instruction</div>
+                <textarea
+                  value={createInstruction}
+                  onChange={e => setCreateInstruction(e.target.value)}
+                  placeholder="Describe how this mode should analyze documents…"
+                  rows={5}
+                  style={{
+                    width: "100%", background: S.bg,
+                    border: `1px solid ${S.panelBorder}`,
+                    borderRadius: 8, padding: "8px 10px",
+                    color: S.textDark, fontSize: 12, lineHeight: 1.6,
+                    fontFamily: "'Montserrat', sans-serif",
+                    outline: "none", resize: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+            </div>
+            {/* Footer */}
+            <div style={{
+              padding: "12px 18px", flexShrink: 0,
+              borderTop: `1px solid ${S.panelBorder}`,
+              display: "flex", justifyContent: "flex-end", gap: 8,
+            }}>
+              <button
+                onClick={() => { setShowCreateModal(false); setCreateName(""); setCreateInstruction(""); setSelectedTemplate(null); }}
+                style={{
+                  padding: "7px 14px", fontSize: 11, fontWeight: 600,
+                  background: "transparent", border: `1px solid ${S.panelBorder}`,
+                  borderRadius: 8, cursor: "pointer", color: S.textMid,
+                  fontFamily: "'Montserrat', sans-serif",
+                }}>
+                Cancel
+              </button>
+              <button
+                onClick={handleSavePersona}
+                disabled={savingPersona || !createName.trim() || !createInstruction.trim()}
+                style={{
+                  padding: "7px 16px", fontSize: 11, fontWeight: 700,
+                  background: S.gold, border: "none", borderRadius: 8,
+                  cursor: savingPersona || !createName.trim() || !createInstruction.trim() ? "not-allowed" : "pointer",
+                  color: "#fff", fontFamily: "'Montserrat', sans-serif",
+                  opacity: savingPersona || !createName.trim() || !createInstruction.trim() ? 0.5 : 1,
+                  transition: "opacity 0.15s",
+                }}>
+                {savingPersona ? "Saving…" : "Save Mode"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
