@@ -3,7 +3,7 @@ import { supabase } from "../../supabase";
 import { extractPDFText } from "../../utils/pdfUtils";
 import { S } from "./ProLayout";
 
-const MAX_CHARS = 300_000;
+const MAX_CHARS = 400_000;
 
 interface Document {
   id: string;
@@ -53,7 +53,7 @@ export default function WorkspaceMiddlePanel({ activeWorkspace, isMobile = false
     try {
       const { text, pages } = await extractPDFText(file);
       if (text.length > MAX_CHARS) {
-        setError(`Document too large (${text.length.toLocaleString()} chars — max 300,000). Try a shorter PDF.`);
+        setError(`Document too large (${text.length.toLocaleString()} chars — max 400,000). Try a shorter PDF.`);
         setUploading(false);
         return;
       }

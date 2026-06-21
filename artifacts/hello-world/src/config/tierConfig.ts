@@ -80,7 +80,7 @@ export const tierConfig: Record<Tier, TierConfig> = {
 
     dailyQuestions: 30,
     pdfsPerDay: 3,
-    maxContextChars: 10000,
+    maxContextChars: 25000,
     maxExportsPerDay: 2,
 
     chatHistory: false,
@@ -152,7 +152,7 @@ export const tierConfig: Record<Tier, TierConfig> = {
 
     dailyQuestions: -1,           // unlimited fair use
     pdfsPerDay: -1,               // unlimited
-    maxContextChars: 1000000,
+    maxContextChars: 4000000,
     maxExportsPerDay: -1,         // unlimited
 
     chatHistory: true,

@@ -394,7 +394,18 @@ export default function AppWrapper() {
       const result = await extractPDFText(file);
       setPdfText(result.text);
       setPdfMeta({ pages: result.pages, words: result.words.toLocaleString() });
-      setMessages([{ role: "assistant", text: "Ready! I've read every word of **" + file.name + "**. Pick a mode below or tap a suggestion to start.", ts: Date.now() }]);
+      const readyMsgs: { role: string; text: string; ts: number }[] = [
+        { role: "assistant", text: "Ready! I've read every word of **" + file.name + "**. Pick a mode below or tap a suggestion to start.", ts: Date.now() },
+      ];
+      if (result.text.length > activeTier.maxContextChars) {
+        const upgradeHint = currentTier === "free" ? "Starter or Pro" : "Pro";
+        readyMsgs.push({
+          role: "assistant",
+          text: `⚠️ This document is too large for your plan — only the first ${activeTier.maxContextChars.toLocaleString()} characters will be used to answer questions. Upgrade to ${upgradeHint} for full-length document support.`,
+          ts: Date.now() + 1,
+        });
+      }
+      setMessages(readyMsgs);
     } catch {
       setMessages([{ role: "assistant", text: "Error reading PDF. Make sure it is not password-protected.", ts: Date.now() }]);
     }
@@ -512,7 +523,7 @@ export default function AppWrapper() {
     const citeInstruction = currentTier !== "free"
       ? "\nWhen making factual claims, cite the page using [p.X] inline. Only cite when confident; do not guess."
       : "";
-    const fullPrompt = systemInstruction + langInstruction + citeInstruction + "\n\nDocument Content:\n" + pdfText.slice(0, 12000) + "\n\nUser Question: " + q;
+    const fullPrompt = systemInstruction + langInstruction + citeInstruction + "\n\nDocument Content:\n" + pdfText.slice(0, activeTier.maxContextChars) + "\n\nUser Question: " + q;
 
     try {
       const res = await fetch(QUERY_URL, {
@@ -568,7 +579,7 @@ export default function AppWrapper() {
           const chat = await createChat(
             session.user.id,
             pdfName,
-            pdfText,
+            pdfText.slice(0, activeTier.maxContextChars),
             smartTitle
           );
           if (chat) {
