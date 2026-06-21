@@ -728,6 +728,26 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
               display: "flex", gap: 4, overflowX: "auto", flexWrap: "nowrap",
               scrollbarWidth: "none", msOverflowStyle: "none",
             }}>
+              {/* Custom mode — pinned first so it's always visible without scrolling */}
+              <button
+                onClick={() => { setShowCreateModal(true); setSelectedTemplate(null); setCreateName(""); setCreateInstruction(""); }}
+                disabled={isBusy}
+                style={{
+                  flexShrink: 0,
+                  background: "transparent",
+                  border: `1px solid ${S.panelBorder}`,
+                  borderRadius: 8, padding: "5px 9px",
+                  color: S.textMid,
+                  cursor: isBusy ? "not-allowed" : "pointer",
+                  fontFamily: "'Montserrat', sans-serif",
+                  fontSize: 11, fontWeight: 600,
+                  display: "flex", alignItems: "center", gap: 4,
+                  transition: "all 0.15s",
+                  opacity: isBusy ? 0.5 : 1, whiteSpace: "nowrap",
+                }}>
+                <Icon name="wand" size={11} color={S.textMid} />
+                Custom
+              </button>
               {PERSONAS.map(p => (
                 <button key={p.id} onClick={() => {
                   if (isBusy) return;
@@ -820,24 +840,6 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
                   </button>
                 );
               })}
-              {/* Create custom mode */}
-              <button
-                onClick={() => { setShowCreateModal(true); setSelectedTemplate(null); setCreateName(""); setCreateInstruction(""); }}
-                disabled={isBusy}
-                style={{
-                  flexShrink: 0,
-                  background: "transparent",
-                  border: `1px dashed ${S.panelBorder}`,
-                  borderRadius: 8, padding: "5px 9px",
-                  color: S.textMuted,
-                  cursor: isBusy ? "not-allowed" : "pointer",
-                  fontFamily: "'Montserrat', sans-serif",
-                  fontSize: 11, fontWeight: 600,
-                  transition: "all 0.15s",
-                  opacity: isBusy ? 0.5 : 1, whiteSpace: "nowrap",
-                }}>
-                ＋
-              </button>
             </div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
