@@ -1,15 +1,37 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../../supabase";
-import { QUERY_URL, C, PERSONAS, LANGUAGES, ICON_PATHS, SUGGESTIONS } from "../../../AppNew";
+import { QUERY_URL, C, PERSONAS, LANGUAGES, ICON_PATHS } from "../../../AppNew";
 import { S } from "../ProLayout";
 import { createChat, loadChats, openChat, saveMessage, renameChat, starChat } from "../../../services/chatService";
 import type { Chat } from "../../../services/chatService";
+import { SUGGESTIONS, AUTO_PROMPTS, PERSONA_SUGGESTIONS } from "../../../constants/autoprompts";
 
-const AUTO_PROMPTS: Record<string, string> = {
-  insights:   "Extract the key insights from this document",
-  studynotes: "Generate comprehensive study notes from this document",
-  examgen:    "Generate exam questions from this document",
-  summarizer: "Give me a TL;DR summary in 5 bullet points",
+const PRO_PERSONA_SUGGESTIONS: Record<string, string[]> = {
+  ...PERSONA_SUGGESTIONS,
+  analyst: [
+    "What decisions need to be made based on this?",
+    "Identify risks and opportunities",
+    "What assumptions underlie this analysis?",
+    "Compare the key trade-offs presented",
+  ],
+  teacher: [
+    "Break this into a structured lesson plan",
+    "What misconceptions might students have?",
+    "Create an analogy to explain the hardest concept",
+    "What prior knowledge is assumed?",
+  ],
+  lawyer: [
+    "What clauses pose the greatest liability?",
+    "Identify ambiguous or missing terms",
+    "What are the termination conditions?",
+    "Flag any compliance concerns",
+  ],
+  doctor: [
+    "What are the clinical decision points?",
+    "Identify contraindications and warnings",
+    "Summarize the evidence quality",
+    "What patient populations are discussed?",
+  ],
 };
 
 function Icon({ name, size = 11, color = "currentColor" }: { name: string; size?: number; color?: string }) {
@@ -640,8 +662,12 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
                   letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 8,
                 }}>Try asking</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
-                  {SUGGESTIONS.map((q, i) => (
-                    <button key={i} onClick={() => !isBusy && send(q)} disabled={isBusy}
+                  {(PRO_PERSONA_SUGGESTIONS[persona] ?? SUGGESTIONS).map((q, i) => (
+                    <button key={i} onClick={() => {
+                      if (isBusy) return;
+                      if (PRO_PERSONA_SUGGESTIONS[persona]) setInput(q);
+                      else send(q);
+                    }} disabled={isBusy}
                       style={{
                         background: S.bg, border: `1px solid ${S.panelBorder}`,
                         borderRadius: 20, padding: "7px 14px",

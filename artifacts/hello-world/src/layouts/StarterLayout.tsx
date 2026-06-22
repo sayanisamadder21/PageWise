@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { C, PERSONAS, LANGUAGES, ICON_PATHS } from "../AppNew";
 import { TierConfig, isFeatureUnlocked} from "../config/tierConfig";
 import { Chat } from "../services/chatService";
+import { SUGGESTIONS, AUTO_PROMPTS, PERSONA_SUGGESTIONS } from "../constants/autoprompts";
 
 const S = {
   sidebar: "#1A1610",
@@ -25,21 +26,6 @@ const S = {
   pillBorder: "#E5DFD6",
 };
 
-const SUGGESTIONS = [
-  "Summarize in 3 bullet points",
-  "What are the key takeaways?",
-  "List all action items",
-  "Extract all dates and deadlines",
-  "Explain in simple language",
-  "What problems does this solve?",
-];
-
-const AUTO_PROMPTS: Record<string, string> = {
-  insights:   "Extract the key insights from this document",
-  studynotes: "Generate comprehensive study notes from this document",
-  examgen:    "Generate exam questions from this document",
-  summarizer: "Give me a TL;DR summary in 5 bullet points",
-};
 
 function LockIcon({ size = 9, color ="currentColor"}: {size?: number; color?: string}) {
   return(
@@ -1028,9 +1014,13 @@ export default function StarterLayout({
                       letterSpacing: 1.5, textTransform: "uppercase",
                     }}>Try asking</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {SUGGESTIONS.map((q, i) => (
+                      {(PERSONA_SUGGESTIONS[persona] ?? SUGGESTIONS).map((q, i) => (
                         <button key={i} className="suggestion-pill"
-                          onClick={() => !isBusy && send(q)}
+                          onClick={() => {
+                            if (isBusy) return;
+                            if (PERSONA_SUGGESTIONS[persona]) setInput(q);
+                            else send(q);
+                          }}
                           disabled={isBusy}
                           style={{
                             background: "#fff", border: `1px solid ${S.inputBorder}`,
