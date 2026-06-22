@@ -524,7 +524,7 @@ export default function AppWrapper() {
     const citeInstruction = currentTier !== "free"
       ? "\nWhen making factual claims, cite the page using [p.X] inline. Only cite when confident; do not guess."
       : "";
-    const fullPrompt = systemInstruction + langInstruction + citeInstruction + "\n\nDocument Content:\n" + pdfText.slice(0, activeTier.maxContextChars) + "\n\nUser Question: " + q;
+    const fullPrompt = citeInstruction + "\n\nDocument Content:\n" + pdfText.slice(0, activeTier.maxContextChars) + "\n\nUser Question: " + q;
 
     try {
       const res = await fetch(QUERY_URL, {
@@ -532,6 +532,7 @@ export default function AppWrapper() {
         headers: { "Content-Type": "application/json" },
         signal: abortRef.current.signal,
         body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemInstruction + langInstruction }] },
           contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
           generationConfig: {
             thinkingConfig: { thinkingBudget: 0 },

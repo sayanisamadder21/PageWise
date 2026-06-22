@@ -310,7 +310,7 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
     const customP  = customPersonas.find(p => p.id === persona);
     const systemInstruction = ((builtInP?.sys ?? customP?.instruction) ?? "") + "\n\n";
     const langInstruction = language !== "English" ? `Respond in ${language}.\n\n` : "";
-    const fullPrompt = systemInstruction + langInstruction + CITE_INSTRUCTION
+    const fullPrompt = CITE_INSTRUCTION
       + "\n\nDocument Content:\n" + combinedContext
       + "\n\nUser Question: " + q;
 
@@ -320,6 +320,7 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
         headers: { "Content-Type": "application/json" },
         signal: abortRef.current.signal,
         body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemInstruction + langInstruction }] },
           contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
           generationConfig: {
             thinkingConfig: { thinkingBudget: 0 },
