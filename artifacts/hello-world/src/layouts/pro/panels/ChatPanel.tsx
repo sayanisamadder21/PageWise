@@ -139,14 +139,17 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
   }, [messages, loading]);
 
   useEffect(() => {
-    if (!userId) return;
-    supabase
-      .from("custom_personas")
-      .select("id, name, instruction")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true })
-      .then(({ data }) => setCustomPersonas(data || []));
-  }, [userId]);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) { setCustomPersonas([]); return; }
+      supabase
+        .from("custom_personas")
+        .select("id, name, instruction")
+        .eq("user_id", session.user.id)
+        .order("created_at", { ascending: true })
+        .then(({ data }) => setCustomPersonas(data || []));
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   async function fetchDocs(): Promise<WorkspaceDoc[]> {
     const { data } = await supabase
