@@ -134,7 +134,10 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
   const abortRef  = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isBusy = loading || streaming;
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const [isMobile, setIsMobile]               = useState(() => window.innerWidth < 768);
+  const [workspaceName, setWorkspaceName]     = useState("Workspace");
+  const [hoveredMsgTs, setHoveredMsgTs]       = useState<number | null>(null);
+  const [copiedMsgTs, setCopiedMsgTs]         = useState<number | null>(null);
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener("resize", onResize);
@@ -150,6 +153,8 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
     setShowHistory(false);
     fetchDocs();
     if (userId) loadChats(userId, activeWorkspace).then(setChatList);
+    supabase.from("workspaces").select("name").eq("id", activeWorkspace).single()
+      .then(({ data }) => { if (data) setWorkspaceName(data.name); });
   }, [activeWorkspace, userId]);
 
   useEffect(() => {
@@ -265,6 +270,55 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
       .eq("id", id)
       .eq("user_id", userId);
     if (!error) setCustomPersonas(prev => prev.map(p => p.id === id ? { ...p, name: name.trim() } : p));
+  }
+
+  function extractPageTextLocal(extractedText: string, pageNum: number): string {
+    const parts = extractedText.split(/(\[Page \d+\])/i);
+    for (let i = 0; i < parts.length - 1; i++) {
+      const m = parts[i].trim().match(/^\[Page (\d+)\]$/i);
+      if (m && parseInt(m[1]) === pageNum) return parts[i + 1]?.trim().slice(0, 280) || "";
+    }
+    return "";
+  }
+
+  function handleExportMarkdown() {
+    const lines: string[] = [
+      `# PageWise Export`,
+      `### Workspace: ${workspaceName}`,
+      `### Documents: ${docs.map(d => d.name).join(", ")}`,
+      `### Chat: ${currentChatTitle}`,
+      ``, `---`, ``,
+    ];
+    messages.forEach(msg => {
+      lines.push(msg.role === "user" ? `**You:** ${msg.text}` : `**PageWise:** ${msg.text}`, ``);
+    });
+    const citedPages = new Set<number>();
+    messages.filter(m => m.role === "assistant").forEach(m => {
+      const re = /\[(?:p\.|page\s*)(\d+(?:[-–]\d+)?)\]/gi;
+      let match;
+      while ((match = re.exec(m.text)) !== null) {
+        const first = parseInt(match[1]);
+        if (!isNaN(first)) citedPages.add(first);
+      }
+    });
+    if (citedPages.size > 0) {
+      lines.push(`## Sources`, ``);
+      Array.from(citedPages).sort((a, b) => a - b).forEach(pageNum => {
+        docs.forEach(doc => {
+          const text = extractPageTextLocal(doc.extracted_text, pageNum);
+          if (text) lines.push(`### Page ${pageNum} — ${doc.name}`, text, ``, `---`, ``);
+        });
+      });
+    }
+    lines.push(`*Exported from PageWise · getpagewise.vercel.app*`);
+    const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const slug = currentChatTitle.replace(/[^a-z0-9 ]/gi, "").trim().slice(0, 40).replace(/\s+/g, "-").toLowerCase() || "chat";
+    a.download = `pagewise-${slug}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   function revealWords(fullText: string) {
@@ -436,6 +490,26 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
             fontFamily: "'Montserrat', sans-serif",
             flexShrink: 0, opacity: isBusy ? 0.5 : 1,
           }}>＋ New</button>
+        <button
+          onClick={handleExportMarkdown}
+          disabled={messages.length === 0}
+          title="Export chat as Markdown"
+          style={{
+            background: "none", border: `1px solid ${S.panelBorder}`,
+            borderRadius: 7, padding: "4px 9px",
+            fontSize: 10, fontWeight: 700, color: S.textMid,
+            cursor: messages.length === 0 ? "not-allowed" : "pointer",
+            fontFamily: "'Montserrat', sans-serif",
+            flexShrink: 0, opacity: messages.length === 0 ? 0.4 : 1,
+            display: "flex", alignItems: "center", gap: 4,
+          }}>
+          <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          .md
+        </button>
 
         {/* History dropdown */}
         {showHistory && (
@@ -698,7 +772,10 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
                 boxShadow: "0 2px 8px rgba(255,140,0,0.20)",
               }}>{msg.text}</div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", maxWidth: "88%" }}>
+              <div
+                onMouseEnter={() => !isMobile && setHoveredMsgTs(msg.ts)}
+                onMouseLeave={() => setHoveredMsgTs(null)}
+                style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", maxWidth: "88%" }}>
                 <div style={{
                   background: S.bg, border: `1px solid ${S.panelBorder}`,
                   borderRadius: "4px 14px 14px 14px",
@@ -717,6 +794,35 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
                     )
                   }} />
                 </div>
+                {!msg.text.startsWith("⚠️") && (
+                  <button
+                    onClick={() => {
+                      const plain = msg.text.replace(/\[(?:p\.|page\s*)\d+(?:[-–]\d+)?\]/gi, "").trim();
+                      navigator.clipboard.writeText(plain);
+                      setCopiedMsgTs(msg.ts);
+                      setTimeout(() => setCopiedMsgTs(null), 1800);
+                    }}
+                    style={{
+                      marginTop: 5, background: copiedMsgTs === msg.ts ? C.orange : "transparent",
+                      border: `1px solid ${C.orange}`, borderRadius: 7,
+                      padding: "3px 9px", fontSize: 10,
+                      color: copiedMsgTs === msg.ts ? "#fff" : C.orange,
+                      cursor: "pointer", fontFamily: "'Montserrat', sans-serif", fontWeight: 700,
+                      display: "flex", alignItems: "center", gap: 4,
+                      opacity: isMobile || hoveredMsgTs === msg.ts ? 1 : 0,
+                      transition: "opacity 0.15s, background 0.15s",
+                      pointerEvents: isMobile || hoveredMsgTs === msg.ts ? "auto" : "none",
+                    }}>
+                    {copiedMsgTs === msg.ts ? "✓ Copied!" : (
+                      <>
+                        <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                        Copy
+                      </>
+                    )}
+                  </button>
+                )}
                 {msg.text.startsWith("⚠️") && (
                   <button
                     onClick={() => {
