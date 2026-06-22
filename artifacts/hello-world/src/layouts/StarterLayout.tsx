@@ -1065,13 +1065,17 @@ export default function StarterLayout({
                   textTransform: "uppercase", fontWeight: 700, flexShrink: 0,
                 }}>Mode</span>
 
-                <div style={{ position: "relative", flex: 1, overflow: "hidden" }}>
-                  <div style={{
-                    position: "absolute", right: 0, top: 0, bottom: 0, width: 32,
-                    zIndex: 2, pointerEvents: "none",
-                    background: `linear-gradient(to right, transparent, ${S.header})`,
-                  }} />
-                  <div style={{ display: "flex", gap: 4, overflowX: "auto", flexWrap: "nowrap",
+                <div style={{ position: "relative", flex: 1, overflow: isMobile ? "hidden" : "visible" }}>
+                  {isMobile && (
+                    <div style={{
+                      position: "absolute", right: 0, top: 0, bottom: 0, width: 32,
+                      zIndex: 2, pointerEvents: "none",
+                      background: `linear-gradient(to right, transparent, ${S.header})`,
+                    }} />
+                  )}
+                  <div style={{ display: "flex", gap: 4,
+                    flexWrap: isMobile ? "nowrap" : "wrap",
+                    overflowX: isMobile ? "auto" : "visible",
                     scrollbarWidth: "none", msOverflowStyle: "none" }}>
                     {/* ── No Mode button ── */}
                     {isFeatureUnlocked(currentTier,"default") && (

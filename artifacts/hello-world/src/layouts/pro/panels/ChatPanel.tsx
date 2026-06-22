@@ -112,6 +112,12 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
   const abortRef  = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const isBusy = loading || streaming;
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useEffect(() => {
     if (!activeWorkspace) return;
@@ -718,14 +724,18 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
             fontSize: 9, color: S.textMuted, letterSpacing: 3,
             textTransform: "uppercase", fontWeight: 700, flexShrink: 0,
           }}>Mode</span>
-          <div style={{ position: "relative", flex: 1, overflow: "hidden" }}>
+          <div style={{ position: "relative", flex: 1, overflow: isMobile ? "hidden" : "visible" }}>
+            {isMobile && (
+              <div style={{
+                position: "absolute", right: 0, top: 0, bottom: 0, width: 28,
+                zIndex: 2, pointerEvents: "none",
+                background: `linear-gradient(to right, transparent, ${S.panelBg})`,
+              }} />
+            )}
             <div style={{
-              position: "absolute", right: 0, top: 0, bottom: 0, width: 28,
-              zIndex: 2, pointerEvents: "none",
-              background: `linear-gradient(to right, transparent, ${S.panelBg})`,
-            }} />
-            <div style={{
-              display: "flex", gap: 4, overflowX: "auto", flexWrap: "nowrap",
+              display: "flex", gap: 4,
+              flexWrap: isMobile ? "nowrap" : "wrap",
+              overflowX: isMobile ? "auto" : "visible",
               scrollbarWidth: "none", msOverflowStyle: "none",
             }}>
               {/* Custom mode — pinned first, dashed gold border signals 'create' not 'select' */}
