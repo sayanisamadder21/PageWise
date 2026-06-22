@@ -698,23 +698,42 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
                 boxShadow: "0 2px 8px rgba(255,140,0,0.20)",
               }}>{msg.text}</div>
             ) : (
-              <div style={{
-                background: S.bg, border: `1px solid ${S.panelBorder}`,
-                borderRadius: "4px 14px 14px 14px",
-                padding: "12px 16px", fontSize: 13, color: S.textDark,
-                lineHeight: 1.7, maxWidth: "88%", boxShadow: S.shadow,
-              }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", maxWidth: "88%" }}>
                 <div style={{
-                  fontSize: 9, fontWeight: 700, color: C.orange,
-                  letterSpacing: 1.5, marginBottom: 8, textTransform: "uppercase",
-                }}>PageWise Pro</div>
-                <div dangerouslySetInnerHTML={{ __html:
-                  fmt(msg.text).replace(
-                    /\[(?:p\.|page\s*)(\d+(?:[-–]\d+)?)\]/gi,
-                    (_: string, pg: string) =>
-                      `<span style="display:inline-flex;align-items:center;background:rgba(255,140,0,0.10);border:1px solid rgba(255,140,0,0.25);color:#CC6F00;border-radius:4px;padding:0 5px;font-size:10px;font-weight:700;font-family:'Montserrat',sans-serif;letter-spacing:0.3px;margin:0 2px;vertical-align:middle;white-space:nowrap">p.${pg}</span>`
-                  )
-                }} />
+                  background: S.bg, border: `1px solid ${S.panelBorder}`,
+                  borderRadius: "4px 14px 14px 14px",
+                  padding: "12px 16px", fontSize: 13, color: S.textDark,
+                  lineHeight: 1.7, width: "100%", boxShadow: S.shadow,
+                }}>
+                  <div style={{
+                    fontSize: 9, fontWeight: 700, color: C.orange,
+                    letterSpacing: 1.5, marginBottom: 8, textTransform: "uppercase",
+                  }}>PageWise Pro</div>
+                  <div dangerouslySetInnerHTML={{ __html:
+                    fmt(msg.text).replace(
+                      /\[(?:p\.|page\s*)(\d+(?:[-–]\d+)?)\]/gi,
+                      (_: string, pg: string) =>
+                        `<span style="display:inline-flex;align-items:center;background:rgba(255,140,0,0.10);border:1px solid rgba(255,140,0,0.25);color:#CC6F00;border-radius:4px;padding:0 5px;font-size:10px;font-weight:700;font-family:'Montserrat',sans-serif;letter-spacing:0.3px;margin:0 2px;vertical-align:middle;white-space:nowrap">p.${pg}</span>`
+                    )
+                  }} />
+                </div>
+                {msg.text.startsWith("⚠️") && (
+                  <button
+                    onClick={() => {
+                      const q = messages.slice(0, i).reverse().find(m => m.role === "user")?.text;
+                      if (q) send(q);
+                    }}
+                    disabled={isBusy}
+                    style={{
+                      marginTop: 6, background: "transparent",
+                      border: `1px solid ${C.orange}`, borderRadius: 20,
+                      padding: "4px 12px", fontSize: 10, color: C.orange,
+                      cursor: isBusy ? "not-allowed" : "pointer",
+                      fontFamily: "'Montserrat', sans-serif", fontWeight: 700,
+                      opacity: isBusy ? 0.5 : 1, transition: "all 0.15s",
+                      display: "flex", alignItems: "center", gap: 5,
+                    }}>↩ Retry</button>
+                )}
               </div>
             )}
           </div>
