@@ -195,11 +195,13 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
     if (!userId) return;
     const restored = await openChat(chat.id, userId);
     if (!restored) return;
-    const uiMessages: Message[] = restored.messages.map(m => ({
-      role: m.role as "user" | "assistant",
-      text: m.content,
-      ts: new Date(m.created_at).getTime(),
-    }));
+    const uiMessages: Message[] = [...restored.messages]
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .map(m => ({
+        role: m.role as "user" | "assistant",
+        text: m.content,
+        ts: new Date(m.created_at).getTime(),
+      }));
     setMessages(uiMessages);
     setCurrentChatId(chat.id);
     setCurrentChatTitle(chat.title);

@@ -137,10 +137,13 @@ export default function ProLayout({ onLogout }: ProLayoutProps) {
               ))}
             </div>
 
-            <div style={{ flex: 1, overflow: "hidden" }}>
-              {activePanelTab === "chat"
-          ? <ChatPanel activeWorkspace={activeWorkspace} userId={userId} onMessagesChange={setMessages} />
-          : <SourcesPanel messages={messages} activeWorkspace={activeWorkspace} />}
+            <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+              <div style={{ position: "absolute", inset: 0, display: activePanelTab === "chat" ? "flex" : "none", flexDirection: "column" }}>
+                <ChatPanel activeWorkspace={activeWorkspace} userId={userId} onMessagesChange={setMessages} />
+              </div>
+              <div style={{ position: "absolute", inset: 0, display: activePanelTab === "sources" ? "flex" : "none", flexDirection: "column" }}>
+                <SourcesPanel messages={messages} activeWorkspace={activeWorkspace} />
+              </div>
             </div>
           </div>
         )}
