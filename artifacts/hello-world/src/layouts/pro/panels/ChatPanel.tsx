@@ -281,42 +281,178 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
     return "";
   }
 
-  function handleExportMarkdown() {
-    const lines: string[] = [
-      `# PageWise Export`,
-      `### Workspace: ${workspaceName}`,
-      `### Documents: ${docs.map(d => d.name).join(", ")}`,
-      `### Chat: ${currentChatTitle}`,
-      ``, `---`, ``,
-    ];
-    messages.forEach(msg => {
-      lines.push(msg.role === "user" ? `**You:** ${msg.text}` : `**PageWise:** ${msg.text}`, ``);
-    });
+  function escHtml(s: string): string {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function mdToHtml(text: string): string {
+    const badge = (pg: string) =>
+      `<span style="background:#FFF7ED;color:#F97316;border:1px solid #F97316;border-radius:4px;` +
+      `padding:1px 6px;font-size:11px;font-weight:600;display:inline-block;margin:0 2px;">p.${pg}</span>`;
+    const lines = text.split("\n");
+    const out: string[] = [];
+    let inUl = false, inOl = false;
+    for (const raw of lines) {
+      let line = raw
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, "<em>$1</em>")
+        .replace(/\[(?:p\.|page\s*)(\d+(?:[-–]\d+)?)\]/gi, (_, pg) => badge(pg));
+      if (/^######\s/.test(raw)) {
+        if (inUl) { out.push("</ul>"); inUl = false; }
+        if (inOl) { out.push("</ol>"); inOl = false; }
+        out.push(`<h6>${line.replace(/^######\s+/, "")}</h6>`);
+      } else if (/^#####\s/.test(raw)) {
+        if (inUl) { out.push("</ul>"); inUl = false; }
+        if (inOl) { out.push("</ol>"); inOl = false; }
+        out.push(`<h5>${line.replace(/^#####\s+/, "")}</h5>`);
+      } else if (/^####\s/.test(raw)) {
+        if (inUl) { out.push("</ul>"); inUl = false; }
+        if (inOl) { out.push("</ol>"); inOl = false; }
+        out.push(`<h4>${line.replace(/^####\s+/, "")}</h4>`);
+      } else if (/^###\s/.test(raw)) {
+        if (inUl) { out.push("</ul>"); inUl = false; }
+        if (inOl) { out.push("</ol>"); inOl = false; }
+        out.push(`<h3>${line.replace(/^###\s+/, "")}</h3>`);
+      } else if (/^##\s/.test(raw)) {
+        if (inUl) { out.push("</ul>"); inUl = false; }
+        if (inOl) { out.push("</ol>"); inOl = false; }
+        out.push(`<h2>${line.replace(/^##\s+/, "")}</h2>`);
+      } else if (/^\d+\.\s/.test(raw)) {
+        if (inUl) { out.push("</ul>"); inUl = false; }
+        if (!inOl) { out.push("<ol>"); inOl = true; }
+        out.push(`<li>${line.replace(/^\d+\.\s+/, "")}</li>`);
+      } else if (/^[-*]\s/.test(raw)) {
+        if (inOl) { out.push("</ol>"); inOl = false; }
+        if (!inUl) { out.push("<ul>"); inUl = true; }
+        out.push(`<li>${line.replace(/^[-*]\s+/, "")}</li>`);
+      } else if (raw.trim() === "") {
+        if (inUl) { out.push("</ul>"); inUl = false; }
+        if (inOl) { out.push("</ol>"); inOl = false; }
+        out.push("<br>");
+      } else {
+        if (inUl) { out.push("</ul>"); inUl = false; }
+        if (inOl) { out.push("</ol>"); inOl = false; }
+        out.push(`<p>${line}</p>`);
+      }
+    }
+    if (inUl) out.push("</ul>");
+    if (inOl) out.push("</ol>");
+    return out.join("\n");
+  }
+
+  function handleExportHtml() {
+    const now      = new Date();
+    const dateStr  = now.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    const timeStr  = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+    const dateSlug = now.toISOString().slice(0, 10);
+    const slug     = currentChatTitle.replace(/[^a-z0-9 ]/gi, "").trim().slice(0, 40).replace(/\s+/g, "-").toLowerCase() || "chat";
+
+    const builtInP = PERSONAS.find(p => p.id === persona);
+    const customP  = customPersonas.find(p => p.id === persona);
+    const modeName = builtInP?.label ?? customP?.name ?? "Default";
+
+    const chatRows = messages.map(msg => {
+      if (msg.role === "user") return (
+        `<div class="message">` +
+        `<div class="label">You asked:</div>` +
+        `<div class="user-text">${escHtml(msg.text)}</div>` +
+        `</div>`
+      );
+      if (msg.text.startsWith("⚠️")) return "";
+      return (
+        `<div class="message">` +
+        `<div class="label">PageWise:</div>` +
+        `<div class="ai-text">${mdToHtml(msg.text)}</div>` +
+        `</div>`
+      );
+    }).join("\n");
+
     const citedPages = new Set<number>();
     messages.filter(m => m.role === "assistant").forEach(m => {
       const re = /\[(?:p\.|page\s*)(\d+(?:[-–]\d+)?)\]/gi;
       let match;
       while ((match = re.exec(m.text)) !== null) {
-        const first = parseInt(match[1]);
-        if (!isNaN(first)) citedPages.add(first);
+        const n = parseInt(match[1]);
+        if (!isNaN(n)) citedPages.add(n);
       }
     });
+    let sourcesHtml = "";
     if (citedPages.size > 0) {
-      lines.push(`## Sources`, ``);
-      Array.from(citedPages).sort((a, b) => a - b).forEach(pageNum => {
+      const items: string[] = [];
+      Array.from(citedPages).sort((a, b) => a - b).forEach(pg => {
         docs.forEach(doc => {
-          const text = extractPageTextLocal(doc.extracted_text, pageNum);
-          if (text) lines.push(`### Page ${pageNum} — ${doc.name}`, text, ``, `---`, ``);
+          const raw = extractPageTextLocal(doc.extracted_text, pg);
+          if (raw) {
+            const excerpt = escHtml(raw.slice(0, 100)) + (raw.length > 100 ? "…" : "");
+            items.push(`<li><strong>p.${pg}</strong> — "${excerpt}"</li>`);
+          }
         });
       });
+      if (items.length > 0) sourcesHtml =
+        `<hr class="rule"><div class="sources"><h2>SOURCES CITED</h2><ul>${items.join("")}</ul></div>`;
     }
-    lines.push(`*Exported from PageWise · getpagewise.vercel.app*`);
-    const blob = new Blob([lines.join("\n")], { type: "text/markdown;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    const slug = currentChatTitle.replace(/[^a-z0-9 ]/gi, "").trim().slice(0, 40).replace(/\s+/g, "-").toLowerCase() || "chat";
-    a.download = `pagewise-${slug}.md`;
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PageWise Export — ${escHtml(currentChatTitle)}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,system-ui,sans-serif;background:#fff;color:#111}
+.container{max-width:800px;margin:0 auto;padding:40px}
+.header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px}
+.logo{font-size:22px;font-weight:700;color:#F97316;letter-spacing:-0.5px}
+.export-date{font-size:12px;color:#888}
+.rule{border:none;border-top:2px solid #F97316;margin:16px 0}
+.meta{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;font-size:13px;margin:16px 0 32px;color:#444}
+.meta-key{font-weight:600;color:#111}
+.message{margin-bottom:28px}
+.label{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#888;background:#f4f4f4;display:inline-block;padding:2px 8px;border-radius:20px;margin-bottom:6px}
+.user-text{font-size:14px;line-height:1.7;color:#111;background:#FFF7ED;border-left:3px solid #F97316;padding:10px 14px;border-radius:0 8px 8px 0}
+.ai-text{font-size:14px;line-height:1.8;color:#111}
+.ai-text h2{font-size:18px;font-weight:700;margin:14px 0 6px}
+.ai-text h3{font-size:15px;font-weight:600;margin:10px 0 4px}
+.ai-text h4{font-size:14px;font-weight:600;margin:8px 0 3px}
+.ai-text h5{font-size:13px;font-weight:600;margin:6px 0 2px;color:#444}
+.ai-text h6{font-size:12px;font-weight:600;margin:4px 0 2px;color:#666}
+.ai-text p{margin:6px 0}
+.ai-text ul,.ai-text ol{padding-left:20px;margin:8px 0}
+.ai-text li{margin:4px 0;line-height:1.7}
+.ai-text strong{font-weight:700}
+.ai-text em{font-style:italic}
+.sources h2{font-size:13px;font-weight:700;letter-spacing:1.5px;color:#888;margin-bottom:14px}
+.sources ul{list-style:none;padding:0;display:flex;flex-direction:column;gap:10px}
+.sources li{font-size:13px;color:#444;line-height:1.6;padding:10px 14px;background:#FFF7ED;border-left:3px solid #F97316;border-radius:0 8px 8px 0}
+.footer{margin-top:48px;padding-top:16px;border-top:1px solid #eee;text-align:center;font-size:11px;color:#aaa}
+@media print{.user-text,.sources li{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><div class="logo">PageWise Pro</div><div class="export-date">Exported ${escHtml(dateStr)} at ${escHtml(timeStr)}</div></div>
+<hr class="rule">
+<div class="meta">
+  <span class="meta-key">Workspace</span><span>${escHtml(workspaceName)}</span>
+  <span class="meta-key">Document</span><span>${escHtml(docs.map(d => d.name).join(", "))}</span>
+  <span class="meta-key">Chat</span><span>${escHtml(currentChatTitle)}</span>
+  <span class="meta-key">Mode</span><span>${escHtml(modeName)}</span>
+</div>
+<div class="chat-body">${chatRows}</div>
+${sourcesHtml}
+<div class="footer">Generated by PageWise Pro &middot; getpagewise.app &middot; ${escHtml(dateStr)}</div>
+</div>
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `pagewise-export-${slug}-${dateSlug}.html`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -491,9 +627,9 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
             flexShrink: 0, opacity: isBusy ? 0.5 : 1,
           }}>＋ New</button>
         <button
-          onClick={handleExportMarkdown}
+          onClick={handleExportHtml}
           disabled={messages.length === 0}
-          title="Export chat as Markdown"
+          title="Export chat as HTML"
           style={{
             background: "none", border: `1px solid ${S.panelBorder}`,
             borderRadius: 7, padding: "4px 9px",
@@ -508,7 +644,7 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
             <polyline points="7 10 12 15 17 10"/>
             <line x1="12" y1="15" x2="12" y2="3"/>
           </svg>
-          .md
+          .html
         </button>
 
         {/* History dropdown */}
