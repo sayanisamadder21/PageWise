@@ -94,7 +94,9 @@ function fmt(t: string): string {
       return `<div style="font-size:15px;font-weight:700;font-family:'Playfair Display',Georgia,serif;color:${C.dark};margin:8px 0 3px;line-height:1.3">${inner}</div>`;
     }
     if (/^[-*]\s/.test(raw)) {
-      const inner = line.replace(/^[-*]\s+/, "");
+      const inner = raw.replace(/^[-*]\s+/, "")
+        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+        .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, "<em>$1</em>");
       return `<div style="display:flex;gap:8px;margin:3px 0;padding-left:4px"><span style="color:${C.orange};font-weight:bold;flex-shrink:0;margin-top:1px">•</span><span>${inner}</span></div>`;
     }
     if (line.trim() === "") return `<div style="height:6px"></div>`;
@@ -325,7 +327,12 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
       } else if (/^[-*]\s/.test(raw)) {
         if (inOl) { out.push("</ol>"); inOl = false; }
         if (!inUl) { out.push("<ul>"); inUl = true; }
-        out.push(`<li>${line.replace(/^[-*]\s+/, "")}</li>`);
+        const liContent = raw.replace(/^[-*]\s+/, "")
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+          .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+          .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, "<em>$1</em>")
+          .replace(/\[(?:p\.|page\s*)(\d+(?:[-–]\d+)?)\]/gi, (_, pg) => badge(pg));
+        out.push(`<li>${liContent}</li>`);
       } else if (raw.trim() === "") {
         if (inUl) { out.push("</ul>"); inUl = false; }
         if (inOl) { out.push("</ol>"); inOl = false; }
@@ -481,7 +488,7 @@ ${sourcesHtml}
     }, 22);
   }
 
-  const send = async (text?: string) => {
+  const send = async (text?: string, retryErrorTs?: number) => {
     const q = (text || input).trim();
     if (!q || isBusy) return;
 
@@ -496,9 +503,9 @@ ${sourcesHtml}
       return;
     }
 
-    // Create chat row on first message
+    // Create chat row on first message (skip on retry — chat already exists)
     let activeChatId = currentChatId;
-    if (!chatInitialized && userId && activeWorkspace) {
+    if (!retryErrorTs && !chatInitialized && userId && activeWorkspace) {
       const title = q.length <= 60 ? q : q.slice(0, 57) + "…";
       const newChat = await createChat(userId, null, null, title, activeWorkspace);
       if (newChat) {
@@ -510,8 +517,12 @@ ${sourcesHtml}
       }
     }
 
-    setInput("");
-    setMessages(prev => [...prev, { role: "user", text: q, ts: Date.now() }]);
+    if (retryErrorTs) {
+      setMessages(prev => prev.filter(m => m.ts !== retryErrorTs));
+    } else {
+      setInput("");
+      setMessages(prev => [...prev, { role: "user", text: q, ts: Date.now() }]);
+    }
     setLoading(true);
     setStreaming(true);
     abortRef.current?.abort();
@@ -963,7 +974,7 @@ ${sourcesHtml}
                   <button
                     onClick={() => {
                       const q = messages.slice(0, i).reverse().find(m => m.role === "user")?.text;
-                      if (q) send(q);
+                      if (q) send(q, msg.ts);
                     }}
                     disabled={isBusy}
                     style={{
