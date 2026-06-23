@@ -326,10 +326,10 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
         if (inUl) { out.push("</ul>"); inUl = false; }
         if (!inOl) { out.push("<ol>"); inOl = true; }
         out.push(`<li>${line.replace(/^\d+\.\s+/, "")}</li>`);
-      } else if (/^[-*]\s/.test(raw)) {
+      } else if (/^\s*[-*]\s/.test(raw)) {
         if (inOl) { out.push("</ol>"); inOl = false; }
         if (!inUl) { out.push("<ul>"); inUl = true; }
-        const liContent = raw.replace(/^[-*]\s+/, "")
+        const liContent = raw.replace(/^\s*[-*]\s+/, "")
           .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
           .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
           .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, "<em>$1</em>")
@@ -338,7 +338,7 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
       } else if (raw.trim() === "") {
         if (inUl) { out.push("</ul>"); inUl = false; }
         if (inOl) { out.push("</ol>"); inOl = false; }
-        out.push("<br>");
+        // blank line — CSS margins on p/ul/ol handle spacing
       } else {
         if (inUl) { out.push("</ul>"); inUl = false; }
         if (inOl) { out.push("</ol>"); inOl = false; }
@@ -369,10 +369,15 @@ export default function ChatPanel({ activeWorkspace, userId, onMessagesChange }:
         `</div>`
       );
       if (msg.text.startsWith("⚠️")) return "";
+      const trimmedText = msg.text.trimEnd();
+      const truncated = trimmedText.length > 50 && !/[.!?)"»…\]]$/.test(trimmedText);
+      const truncNote = truncated
+        ? `<p style="font-style:italic;color:#888;font-size:12px;margin-top:8px;">Response was truncated. Re-export after regenerating this chat for full content.</p>`
+        : "";
       return (
         `<div class="message">` +
         `<div class="label">PageWise:</div>` +
-        `<div class="ai-text">${mdToHtml(msg.text)}</div>` +
+        `<div class="ai-text">${mdToHtml(msg.text)}${truncNote}</div>` +
         `</div>`
       );
     }).join("\n");
@@ -445,7 +450,7 @@ body{font-family:Inter,system-ui,sans-serif;background:#fff;color:#111}
 <div class="header"><div class="logo">PageWise Pro</div><div class="export-date">Exported ${escHtml(dateStr)} at ${escHtml(timeStr)}</div></div>
 <hr class="rule">
 <div class="meta">
-  <span class="meta-key">Workspace</span><span>${escHtml(workspaceName)}</span>
+  <span class="meta-key">Workspace</span><span>${escHtml(workspaceName.trim())}</span>
   <span class="meta-key">Document</span><span>${escHtml(docs.map(d => d.name).join(", "))}</span>
   <span class="meta-key">Chat</span><span>${escHtml(currentChatTitle)}</span>
   <span class="meta-key">Mode</span><span>${escHtml(modeName)}</span>
@@ -575,10 +580,11 @@ ${sourcesHtml}
       const fullText: string =
         data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
       setLoading(false);
-      // Save both turns to DB (fire-and-forget — don't block the word reveal)
+      // Save user message first, then assistant — ensures created_at ordering on reload
       if (activeChatId && userId) {
-        saveMessage(activeChatId, userId, "user", q);
-        saveMessage(activeChatId, userId, "assistant", fullText);
+        saveMessage(activeChatId, userId, "user", q).then(() =>
+          saveMessage(activeChatId, userId, "assistant", fullText)
+        );
       }
       revealWords(fullText);
     } catch (err: any) {
