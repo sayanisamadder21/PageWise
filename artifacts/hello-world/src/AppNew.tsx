@@ -14,6 +14,7 @@ import ProLayout from "./layouts/pro/ProLayout";
 import { Tier, TierConfig, isFeatureUnlocked } from "./config/tierConfig";
 import { createChat, loadChats, openChat, saveMessage, Chat } from "./services/chatService";
 import { getCurrentTier } from "./utils/getCurrentTier";
+import CookieConsent from "./components/CookieConsent";
 
 // ── Splash Screen ──────────────────────────────────────────
 function SplashScreen({ visible }: { visible: boolean }) {
@@ -683,12 +684,13 @@ export default function AppWrapper() {
   };
 
   // ── Page routing ───────────────────────────────────────────
-  if (page === "privacy") return <Privacy onBack={() => setPage("home")} />;
-  if (page === "terms")   return <Terms   onBack={() => setPage("home")} />;
+  if (page === "privacy") return <><CookieConsent /><Privacy onBack={() => setPage("home")} /></>;
+  if (page === "terms")   return <><CookieConsent /><Terms   onBack={() => setPage("home")} /></>;
 
-  if (!session) return <Auth />;
+  if (!session) return <><CookieConsent /><Auth /></>;
   return (
     <>
+      <CookieConsent />
       <UpgradeModal visible={upgradeModal.visible} reason={upgradeModal.reason} onClose={() => setUpgradeModal({ visible: false })} />
       <SplashScreen visible={splash} />
       {currentTier === "pro" ? (
