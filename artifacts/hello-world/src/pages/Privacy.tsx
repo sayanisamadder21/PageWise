@@ -41,7 +41,9 @@ export default function Privacy({ onBack }: PrivacyProps) {
       <h2>1. Introduction</h2>
       <p>
         This Privacy Policy explains how PageWise, operated by Saevora,
-        handles information when you use the service.
+        handles information when you use the service. PageWise is operated by
+        Saevora, which acts as the Data Fiduciary under applicable Indian data
+        protection law.
       </p>
 
       <h2>2. Age Requirement</h2>

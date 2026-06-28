@@ -553,6 +553,7 @@ ${sourcesHtml}
         headers: { "Content-Type": "application/json" },
         signal: abortRef.current.signal,
         body: JSON.stringify({
+          _tier: "pro",
           system_instruction: { parts: [{ text: systemInstruction + langInstruction }] },
           contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
           generationConfig: {

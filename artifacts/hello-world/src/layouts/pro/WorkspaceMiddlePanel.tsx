@@ -49,6 +49,14 @@ export default function WorkspaceMiddlePanel({ activeWorkspace, isMobile = false
 
   async function handleFile(file: File) {
     setError(null);
+    if (!file || file.type !== "application/pdf") {
+      setError("Please upload a PDF file.");
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      setError("This file exceeds the 50MB limit for your plan. Please upgrade or use a smaller file.");
+      return;
+    }
     setUploading(true);
     try {
       const { text, pages } = await extractPDFText(file);

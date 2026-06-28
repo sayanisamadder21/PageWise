@@ -377,6 +377,11 @@ export default function AppWrapper() {
 
   const handleFile = async (file: File) => {
     if (!file || file.type !== "application/pdf") { alert("Please upload a PDF file."); return; }
+    const mbLimit = ({ free: 10, starter: 20, pro: 50 } as Record<Tier, number>)[currentTier] ?? 10;
+    if (file.size > mbLimit * 1024 * 1024) {
+      alert(`This file exceeds the ${mbLimit}MB limit for your plan. Please upgrade or use a smaller file.`);
+      return;
+    }
     if (usage.pdfs >= activeTier.pdfsPerDay) { setUpgradeModal({ visible: true, reason: "pdfs" }); return; }
     await incrementUsage(session.user.id, "pdfs");
     setUsage(prev => ({ ...prev, pdfs: prev.pdfs + 1 }));
@@ -533,6 +538,7 @@ export default function AppWrapper() {
         headers: { "Content-Type": "application/json" },
         signal: abortRef.current.signal,
         body: JSON.stringify({
+          _tier: currentTier,
           system_instruction: { parts: [{ text: systemInstruction + langInstruction }] },
           contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
           generationConfig: {
@@ -622,6 +628,7 @@ export default function AppWrapper() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          _tier: currentTier,
           contents: [{ role: "user", parts: [{ text: prompt }] }],
           generationConfig: {
             thinkingConfig: { thinkingBudget: 0 },
