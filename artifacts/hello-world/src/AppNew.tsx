@@ -698,7 +698,13 @@ export default function AppWrapper() {
   return (
     <>
       <CookieConsent />
-      <UpgradeModal visible={upgradeModal.visible} reason={upgradeModal.reason} onClose={() => setUpgradeModal({ visible: false })} />
+      <UpgradeModal
+        visible={upgradeModal.visible}
+        reason={upgradeModal.reason}
+        onClose={() => setUpgradeModal({ visible: false })}
+        session={session}
+        onTierRefresh={() => loadUserTier(session.user.id)}
+      />
       <SplashScreen visible={splash} />
       {currentTier === "pro" ? (
         <ProLayout onLogout={handleLogout} />

@@ -133,7 +133,7 @@ export const tierConfig: Record<Tier, TierConfig> = {
     largeDocumentSupport: false,
     priorityPerformance: false,
 
-    modes: 8,
+    modes: 9,
     unlockedModeIds: ALL_MODES,
 
     storageType: "supabase",
