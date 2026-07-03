@@ -1,4 +1,4 @@
-const Razorpay = require("razorpay");
+const https = require("https");
 
 const AMOUNTS = {
   "starter-monthly": 19900,
@@ -6,6 +6,44 @@ const AMOUNTS = {
   "pro-monthly":     49900,
   "pro-yearly":      499000,
 };
+
+function createOrder({ amount, currency, receipt, keyId, keySecret }) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({ amount, currency, receipt });
+    const auth = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
+    const req = https.request(
+      {
+        hostname: "api.razorpay.com",
+        path: "/v1/orders",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Basic ${auth}`,
+          "Content-Length": Buffer.byteLength(body),
+        },
+      },
+      (res) => {
+        let data = "";
+        res.on("data", (chunk) => (data += chunk));
+        res.on("end", () => {
+          try {
+            const parsed = JSON.parse(data);
+            if (res.statusCode >= 400) {
+              reject(new Error(parsed.error?.description ?? `HTTP ${res.statusCode}`));
+            } else {
+              resolve(parsed);
+            }
+          } catch (e) {
+            reject(e);
+          }
+        });
+      }
+    );
+    req.on("error", reject);
+    req.write(body);
+    req.end();
+  });
+}
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -21,26 +59,31 @@ module.exports = async function handler(req, res) {
   const amount = AMOUNTS[key];
   if (!amount) return res.status(400).json({ error: "Invalid plan/billing combination" });
 
-  try {
-    const instance = new Razorpay({
-      key_id:     process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_KEY_SECRET,
-    });
+  const keyId     = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
-    const order = await instance.orders.create({
+  if (!keyId || !keySecret) {
+    console.error("razorpay-order: missing RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET");
+    return res.status(500).json({ error: "Payment not configured" });
+  }
+
+  try {
+    const order = await createOrder({
       amount,
       currency: "INR",
-      receipt:  `pw_${Date.now()}`,
+      receipt: `pw_${Date.now()}`,
+      keyId,
+      keySecret,
     });
 
     res.json({
       orderId:  order.id,
       amount:   order.amount,
       currency: order.currency,
-      keyId:    process.env.RAZORPAY_KEY_ID,
+      keyId,
     });
   } catch (err) {
-    console.error("razorpay-order error:", err);
+    console.error("razorpay-order error:", err.message ?? err);
     res.status(500).json({ error: "Failed to create order" });
   }
 };
