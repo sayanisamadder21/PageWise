@@ -14,6 +14,7 @@ import ProLayout from "./layouts/pro/ProLayout";
 import { Tier, TierConfig, isFeatureUnlocked } from "./config/tierConfig";
 import { createChat, loadChats, openChat, saveMessage, Chat } from "./services/chatService";
 import { getCurrentTier } from "./utils/getCurrentTier";
+import { isDevAccessGranted, getDevParam } from "./utils/devAccess";
 import CookieConsent from "./components/CookieConsent";
 
 // ── Splash Screen ──────────────────────────────────────────
@@ -358,9 +359,12 @@ export default function AppWrapper() {
 
   const [currentTier, setCurrentTier] = useState<Tier>("free");
   const loadUserTier = async (_userId: string) => {
-    const override = new URLSearchParams(window.location.search).get("tier") as Tier | null;
-    if (override && ["free", "starter", "pro"].includes(override)) {
-      setCurrentTier(override);
+    // DEV-ONLY: ?tier= override, gated behind server-side dev key validation.
+    // Requires both ?tier=<free|starter|pro> and ?dev_key=<DEV_ACCESS_KEY> in the URL.
+    // Normal users without a valid dev_key are silently routed to the real tier lookup.
+    const tierParam = getDevParam("tier") as Tier | null;
+    if (tierParam && ["free", "starter", "pro"].includes(tierParam) && await isDevAccessGranted()) {
+      setCurrentTier(tierParam);
       return;
     }
     const tier = await getCurrentTier();

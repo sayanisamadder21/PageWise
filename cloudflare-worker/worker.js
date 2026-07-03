@@ -8,6 +8,14 @@
 const RATE_LIMITS = { free: 10, starter: 20, pro: 40 };
 const WINDOW_MS   = 60_000; // 1 minute
 
+// DEV-ONLY gate: returns true if body._dev_key matches the DEV_ACCESS_KEY Worker secret.
+// Add this check around any debug behaviour added to this Worker in the future.
+// Never log or echo the key value. Always strip _dev_key from body before forwarding.
+function isDevAccess(body, env) {
+  const secret = env.DEV_ACCESS_KEY;
+  return !!(secret && typeof body._dev_key === "string" && body._dev_key === secret);
+}
+
 // In-memory counters: ip -> { count, resetAt }
 // Per-isolate — not globally consistent, but effective against burst abuse.
 const ipCounters = new Map();
@@ -50,9 +58,13 @@ export default {
       return jsonRes({ error: "Invalid request: missing content" }, 400);
     }
 
-    // Extract tier for rate limiting, then strip it — Gemini rejects unknown fields
+    // Extract tier for rate limiting, then strip it — Gemini rejects unknown fields.
     const tier  = typeof body._tier === "string" ? body._tier : "free";
     delete body._tier;
+
+    // Strip _dev_key before forwarding — Gemini rejects unknown fields.
+    // isDevAccess() is available here for any future dev-gated Worker behaviour.
+    delete body._dev_key;
 
     // Rate limiting — per IP, per minute window
     const ip    = request.headers.get("CF-Connecting-IP") ?? "unknown";

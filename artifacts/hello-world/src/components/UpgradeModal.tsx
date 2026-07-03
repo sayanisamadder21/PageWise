@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { C } from "../AppNew";
 import { tierConfig } from "../config/tierConfig";
+import { isDevAccessGranted, getDevParam } from "../utils/devAccess";
 
 const GEO_URL = "https://plain-firefly-95a9.sayanisamadder345.workers.dev/geo";
 
@@ -45,10 +46,25 @@ export default function UpgradeModal({ visible, onClose, reason, session, onTier
   const [payError,    setPayError]    = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(GEO_URL)
-      .then(r => r.json())
-      .then(d => setIsIndia(d.country === "IN"))
-      .catch(() => setIsIndia(false));
+    const realGeoFetch = () => {
+      fetch(GEO_URL)
+        .then(r => r.json())
+        .then(d => setIsIndia(d.country === "IN"))
+        .catch(() => setIsIndia(false));
+    };
+
+    // DEV-ONLY: ?test_country= override for geo/payment-provider detection.
+    // Requires both ?test_country=<CC> and ?dev_key=<DEV_ACCESS_KEY> in the URL.
+    // Normal users without a valid dev_key always go through the real geo fetch.
+    const testCountry = getDevParam("test_country");
+    if (testCountry) {
+      isDevAccessGranted().then(valid => {
+        if (valid) setIsIndia(testCountry.toUpperCase() === "IN");
+        else realGeoFetch();
+      });
+    } else {
+      realGeoFetch();
+    }
   }, []);
 
   // Reset transient state whenever the modal opens/closes
