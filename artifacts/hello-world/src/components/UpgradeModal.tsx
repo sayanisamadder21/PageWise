@@ -150,7 +150,7 @@ export default function UpgradeModal({ visible, onClose, reason, session, onTier
       if (billing === "yearly") {
         return {
           yearly:  `₹${plan.yearlyINR.toLocaleString("en-IN")}/yr`,
-          monthly: `₹${Math.round(plan.yearlyINR / 12)}/mo`,
+          monthly: `₹${plan.monthlyINR}/mo`,
         };
       }
       return { yearly: null, monthly: `₹${plan.monthlyINR}/mo` };
@@ -158,7 +158,7 @@ export default function UpgradeModal({ visible, onClose, reason, session, onTier
       if (billing === "yearly") {
         return {
           yearly:  `$${plan.yearlyUSD}/yr`,
-          monthly: `$${Math.round(plan.yearlyUSD / 12)}/mo`,
+          monthly: `$${plan.monthlyUSD}/mo`,
         };
       }
       return { yearly: null, monthly: `$${plan.monthlyUSD}/mo` };
