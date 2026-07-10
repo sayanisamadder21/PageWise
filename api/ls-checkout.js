@@ -64,12 +64,12 @@ module.exports = async function handler(req, res) {
   const { plan, billing, email, userId } = req.body ?? {};
   if (!plan || !billing) return res.status(400).json({ error: "Missing plan or billing" });
 
-  const apiKey    = process.env.LEMON_SQUEEZY_API_KEY;
-  const storeId   = process.env.LS_STORE_ID;
+  const apiKey    = process.env.LS_API_KEY;
+  const storeId   = process.env.VITE_LS_STORE_ID;
   const variantId = getVariantId(plan, billing);
 
   if (!apiKey || !storeId) {
-    console.error("ls-checkout: missing LEMON_SQUEEZY_API_KEY or LS_STORE_ID");
+    console.error("ls-checkout: missing LS_API_KEY or VITE_LS_STORE_ID");
     return res.status(500).json({ error: "Checkout not configured" });
   }
   if (!variantId) {
