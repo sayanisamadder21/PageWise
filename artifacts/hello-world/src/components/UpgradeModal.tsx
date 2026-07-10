@@ -5,13 +5,6 @@ import { isDevAccessGranted, getDevParam } from "../utils/devAccess";
 
 const GEO_URL = "https://plain-firefly-95a9.sayanisamadder345.workers.dev/geo";
 
-const LS_VARIANTS: Record<string, string | undefined> = {
-  "starter-monthly": import.meta.env.VITE_LS_STARTER_MONTHLY_ID,
-  "starter-yearly":  import.meta.env.VITE_LS_STARTER_YEARLY_ID,
-  "pro-monthly":     import.meta.env.VITE_LS_PRO_MONTHLY_ID,
-  "pro-yearly":      import.meta.env.VITE_LS_PRO_YEARLY_ID,
-};
-
 interface UpgradeModalProps {
   visible: boolean;
   onClose: () => void;
@@ -219,11 +212,23 @@ export default function UpgradeModal({ visible, onClose, reason, session, onTier
   }
 
   // ── Lemon Squeezy (international) ──────────────────────────
-  function handleLemonSqueezy(planId: "starter" | "pro") {
-    const variantId = LS_VARIANTS[`${planId}-${billing}`];
-    if (!variantId) throw new Error("Checkout not configured for this plan");
-    const email = encodeURIComponent(session?.user?.email ?? "");
-    const url   = `https://saevorapagewise.lemonsqueezy.com/checkout/buy/${variantId}?checkout[email]=${email}`;
+  // Calls /api/ls-checkout server-side to get a real UUID checkout URL via the LS Checkouts API.
+  async function handleLemonSqueezy(planId: "starter" | "pro") {
+    const res = await fetch("/api/ls-checkout", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        plan:    planId,
+        billing,
+        email:   session?.user?.email ?? "",
+        userId:  session?.user?.id    ?? "",
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error((data as any).error ?? "Failed to create checkout");
+    }
+    const { url } = await res.json() as { url: string };
     window.open(url, "_blank", "noopener,noreferrer");
     setLsRedirect(true);
   }
@@ -240,7 +245,7 @@ export default function UpgradeModal({ visible, onClose, reason, session, onTier
         setSuccess(true);
         setTimeout(onClose, 2500);
       } else {
-        handleLemonSqueezy(planId);
+        await handleLemonSqueezy(planId);
         // LS success is async (webhook); show redirect message instead
       }
     } catch (err: any) {
