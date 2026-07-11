@@ -52,10 +52,10 @@ module.exports = async function handler(req, res) {
 
   // Map variant IDs to plan + billing
   const VARIANT_MAP = {
-    [process.env.LS_STARTER_MONTHLY_ID]: { plan: "starter", billing: "monthly" },
-    [process.env.LS_STARTER_YEARLY_ID]:  { plan: "starter", billing: "yearly"  },
-    [process.env.LS_PRO_MONTHLY_ID]:     { plan: "pro",     billing: "monthly" },
-    [process.env.LS_PRO_YEARLY_ID]:      { plan: "pro",     billing: "yearly"  },
+    [process.env.VITE_LS_STARTER_MONTHLY_ID]: { plan: "starter", billing: "monthly" },
+    [process.env.VITE_LS_STARTER_YEARLY_ID]:  { plan: "starter", billing: "yearly"  },
+    [process.env.VITE_LS_PRO_MONTHLY_ID]:     { plan: "pro",     billing: "monthly" },
+    [process.env.VITE_LS_PRO_YEARLY_ID]:      { plan: "pro",     billing: "yearly"  },
   };
 
   const mapped = VARIANT_MAP[variantId];

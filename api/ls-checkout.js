@@ -1,16 +1,16 @@
 // Server-side Lemon Squeezy checkout creation.
 // Calls the LS Checkouts API to get a real UUID-based checkout URL.
-// LEMON_SQUEEZY_API_KEY and LS_STORE_ID must never be exposed to the frontend.
+// LS_API_KEY and VITE_LS_STORE_ID must never be exposed to the frontend.
 
 const https = require("https");
 
 // Maps plan+billing keys to the LS variant ID env vars (server-side only).
 function getVariantId(plan, billing) {
   const map = {
-    "starter-monthly": process.env.LS_STARTER_MONTHLY_ID,
-    "starter-yearly":  process.env.LS_STARTER_YEARLY_ID,
-    "pro-monthly":     process.env.LS_PRO_MONTHLY_ID,
-    "pro-yearly":      process.env.LS_PRO_YEARLY_ID,
+    "starter-monthly": process.env.VITE_LS_STARTER_MONTHLY_ID,
+    "starter-yearly":  process.env.VITE_LS_STARTER_YEARLY_ID,
+    "pro-monthly":     process.env.VITE_LS_PRO_MONTHLY_ID,
+    "pro-yearly":      process.env.VITE_LS_PRO_YEARLY_ID,
   };
   return map[`${plan}-${billing}`];
 }
