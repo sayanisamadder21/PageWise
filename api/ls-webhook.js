@@ -1,22 +1,57 @@
-const crypto    = require("crypto");
+const crypto           = require("crypto");
 const { createClient } = require("@supabase/supabase-js");
 
-// Disable body parsing so we can verify the raw HMAC
+// Disable Vercel body parsing — HMAC must be computed over the raw request bytes.
 module.exports.config = { api: { bodyParser: false } };
+
+// Events this handler acts on. All others receive a 200 acknowledgement and are ignored.
+const HANDLED_EVENTS = new Set([
+  "order_created",
+  "subscription_created",
+  "subscription_updated",
+  "subscription_cancelled",
+]);
 
 function readRawBody(req) {
   return new Promise((resolve, reject) => {
     let data = "";
     req.on("data", chunk => (data += chunk));
-    req.on("end", () => resolve(data));
+    req.on("end",  () => resolve(data));
     req.on("error", reject);
   });
 }
 
-function planExpiry(billing) {
-  const d = new Date();
-  billing === "yearly" ? d.setFullYear(d.getFullYear() + 1) : d.setMonth(d.getMonth() + 1);
-  return d.toISOString();
+function variantMap() {
+  return {
+    [process.env.VITE_LS_STARTER_MONTHLY_ID]: { plan: "starter", billing: "monthly" },
+    [process.env.VITE_LS_STARTER_YEARLY_ID]:  { plan: "starter", billing: "yearly"  },
+    [process.env.VITE_LS_PRO_MONTHLY_ID]:     { plan: "pro",     billing: "monthly" },
+    [process.env.VITE_LS_PRO_YEARLY_ID]:      { plan: "pro",     billing: "yearly"  },
+  };
+}
+
+// Update the user's plan by Supabase user ID first, falling back to email.
+async function updateUser(userId, email, plan, planExpiry) {
+  const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
+  const update = { plan, plan_expiry: planExpiry };
+
+  if (userId) {
+    const { error } = await supabase.from("users").update(update).eq("id", userId);
+    if (error) throw Object.assign(new Error("DB update failed"), { cause: error });
+    return;
+  }
+
+  if (email) {
+    const { error } = await supabase.from("users").update(update).eq("email", email);
+    if (error) throw Object.assign(new Error("DB update failed"), { cause: error });
+    return;
+  }
+
+  throw new Error("ls-webhook: event has neither custom_data.user_id nor user_email");
 }
 
 module.exports = async function handler(req, res) {
@@ -24,16 +59,29 @@ module.exports = async function handler(req, res) {
 
   const rawBody = await readRawBody(req);
 
-  // Verify Lemon Squeezy webhook signature
-  const secret    = process.env.LS_WEBHOOK_SECRET ?? "";
+  // ── Signature verification ────────────────────────────────────────────────
+  // Env var name: LS_WEBHOOK_SECRET  (add this exact name in Vercel)
+  const secret = process.env.LS_WEBHOOK_SECRET ?? "";
+  if (!secret) {
+    console.error("ls-webhook: LS_WEBHOOK_SECRET is not configured");
+    return res.status(500).end();
+  }
+
   const signature = req.headers["x-signature"] ?? "";
   const digest    = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
 
-  if (digest !== signature) {
+  // timingSafeEqual requires equal-length buffers; mismatched length = invalid sig.
+  const digestBuf = Buffer.from(digest);
+  const sigBuf    = Buffer.from(signature);
+  const sigValid  = digestBuf.length === sigBuf.length &&
+                    crypto.timingSafeEqual(digestBuf, sigBuf);
+
+  if (!sigValid) {
     console.error("ls-webhook: invalid signature");
     return res.status(401).json({ error: "Invalid signature" });
   }
 
+  // ── Parse event ───────────────────────────────────────────────────────────
   let event;
   try {
     event = JSON.parse(rawBody);
@@ -41,44 +89,69 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ error: "Invalid JSON" });
   }
 
-  // Only process paid orders
-  if (event.meta?.event_name !== "order_created") {
+  const eventName = event.meta?.event_name;
+  if (!HANDLED_EVENTS.has(eventName)) {
     return res.status(200).json({ received: true });
   }
 
-  const attrs     = event.data?.attributes ?? {};
-  const email     = attrs.user_email;
-  const variantId = String(attrs.first_order_item?.variant_id ?? "");
+  const attrs = event.data?.attributes ?? {};
 
-  // Map variant IDs to plan + billing
-  const VARIANT_MAP = {
-    [process.env.VITE_LS_STARTER_MONTHLY_ID]: { plan: "starter", billing: "monthly" },
-    [process.env.VITE_LS_STARTER_YEARLY_ID]:  { plan: "starter", billing: "yearly"  },
-    [process.env.VITE_LS_PRO_MONTHLY_ID]:     { plan: "pro",     billing: "monthly" },
-    [process.env.VITE_LS_PRO_YEARLY_ID]:      { plan: "pro",     billing: "yearly"  },
-  };
+  // Prefer Supabase user_id sent in checkout_data.custom; fall back to email.
+  const userId = event.meta?.custom_data?.user_id ?? null;
+  const email  = attrs.user_email ?? null;
 
-  const mapped = VARIANT_MAP[variantId];
+  // ── Resolve variant → plan ────────────────────────────────────────────────
+  // order_created:          variant is inside first_order_item
+  // subscription_* events:  variant_id is a direct attribute
+  const rawVariantId = eventName === "order_created"
+    ? attrs.first_order_item?.variant_id
+    : attrs.variant_id;
+
+  const variantId = String(rawVariantId ?? "");
+  const VMAP      = variantMap();
+  const mapped    = VMAP[variantId];
+
   if (!mapped) {
-    console.error("ls-webhook: unknown variantId", variantId);
+    console.error("ls-webhook: unknown variantId", variantId, "for event", eventName);
     return res.status(400).json({ error: "Unknown variant" });
   }
 
-  // Update user plan — look up by email
-  const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  );
+  // ── Determine plan expiry ─────────────────────────────────────────────────
+  let planExpiry;
 
-  const { error } = await supabase
-    .from("users")
-    .update({ plan: mapped.plan, plan_expiry: planExpiry(mapped.billing) })
-    .eq("email", email);
+  if (eventName === "subscription_cancelled") {
+    // Keep plan active until the end of the paid period, then let it lapse.
+    // ends_at is null if the subscription cancels immediately — fall back to now.
+    planExpiry = attrs.ends_at ?? new Date().toISOString();
+  } else if (eventName === "order_created") {
+    // One-time purchase: calculated from now.
+    const d = new Date();
+    mapped.billing === "yearly"
+      ? d.setFullYear(d.getFullYear() + 1)
+      : d.setMonth(d.getMonth() + 1);
+    planExpiry = d.toISOString();
+  } else {
+    // subscription_created / subscription_updated: use LS's renews_at as source of truth.
+    if (attrs.renews_at) {
+      planExpiry = attrs.renews_at;
+    } else {
+      const d = new Date();
+      mapped.billing === "yearly"
+        ? d.setFullYear(d.getFullYear() + 1)
+        : d.setMonth(d.getMonth() + 1);
+      planExpiry = d.toISOString();
+    }
+  }
 
-  if (error) {
-    console.error("ls-webhook supabase error:", error);
+  // ── Update Supabase ───────────────────────────────────────────────────────
+  // For subscription_cancelled we keep the current plan name but shorten its expiry.
+  // getCurrentTier() will return "free" once plan_expiry has passed.
+  try {
+    await updateUser(userId, email, mapped.plan, planExpiry);
+  } catch (err) {
+    console.error("ls-webhook DB error:", err.message, err.cause ?? "");
     return res.status(500).json({ error: "DB update failed" });
   }
 
-  res.status(200).json({ success: true });
+  return res.status(200).json({ success: true });
 };
