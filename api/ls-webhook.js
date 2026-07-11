@@ -35,8 +35,8 @@ function variantMap() {
 // Returns "ok", "not_found", or throws on DB error.
 async function updateUser(userId, email, plan, planExpiry) {
   const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+    process.env.VITE_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY   // service role — bypasses RLS; never use anon key here
   );
 
   const update = { plan, plan_expiry: planExpiry };

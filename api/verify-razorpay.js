@@ -39,8 +39,8 @@ module.exports = async function handler(req, res) {
 
   // Update user plan using service role key (bypasses RLS)
   const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+    process.env.VITE_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY   // service role — bypasses RLS; never use anon key here
   );
 
   const { error } = await supabase
