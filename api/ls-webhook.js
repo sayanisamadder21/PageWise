@@ -30,7 +30,9 @@ function variantMap() {
   };
 }
 
-// Update the user's plan by Supabase user ID first, falling back to email.
+// Update the user's plan. Tries Supabase user ID first, falls back to email.
+// Uses service role key — bypasses RLS entirely.
+// Returns "ok", "not_found", or throws on DB error.
 async function updateUser(userId, email, plan, planExpiry) {
   const supabase = createClient(
     process.env.SUPABASE_URL,
@@ -40,14 +42,41 @@ async function updateUser(userId, email, plan, planExpiry) {
   const update = { plan, plan_expiry: planExpiry };
 
   if (userId) {
-    const { error } = await supabase.from("users").update(update).eq("id", userId);
-    if (error) throw Object.assign(new Error("DB update failed"), { cause: error });
-    return;
+    console.log("ls-webhook: updating by userId", userId, "→ plan:", plan, "expiry:", planExpiry);
+    const { data, error } = await supabase
+      .from("users")
+      .update(update)
+      .eq("id", userId)
+      .select("id");                       // .select() makes zero-row matches detectable
+    if (error) {
+      console.error("ls-webhook: supabase error (by userId):", JSON.stringify(error));
+      throw Object.assign(new Error("DB update failed"), { cause: error });
+    }
+    if (!data || data.length === 0) {
+      console.error("ls-webhook: no row matched users.id =", userId, "— falling back to email");
+      // Fall through to email path below
+    } else {
+      console.log("ls-webhook: updated", data.length, "row(s) by userId");
+      return;
+    }
   }
 
   if (email) {
-    const { error } = await supabase.from("users").update(update).eq("email", email);
-    if (error) throw Object.assign(new Error("DB update failed"), { cause: error });
+    console.log("ls-webhook: updating by email", email, "→ plan:", plan, "expiry:", planExpiry);
+    const { data, error } = await supabase
+      .from("users")
+      .update(update)
+      .eq("email", email)
+      .select("id");
+    if (error) {
+      console.error("ls-webhook: supabase error (by email):", JSON.stringify(error));
+      throw Object.assign(new Error("DB update failed"), { cause: error });
+    }
+    if (!data || data.length === 0) {
+      console.error("ls-webhook: no row matched users.email =", email);
+      throw new Error("User not found in DB (neither by userId nor email)");
+    }
+    console.log("ls-webhook: updated", data.length, "row(s) by email");
     return;
   }
 
@@ -97,8 +126,11 @@ module.exports = async function handler(req, res) {
   const attrs = event.data?.attributes ?? {};
 
   // Prefer Supabase user_id sent in checkout_data.custom; fall back to email.
-  const userId = event.meta?.custom_data?.user_id ?? null;
-  const email  = attrs.user_email ?? null;
+  // || null (not ??) so empty string "" from a missing session is also treated as absent.
+  const userId = event.meta?.custom_data?.user_id || null;
+  const email  = attrs.user_email || null;
+
+  console.log("ls-webhook: event", eventName, "| userId:", userId, "| email:", email);
 
   // ── Resolve variant → plan ────────────────────────────────────────────────
   // order_created:          variant is inside first_order_item
@@ -112,9 +144,12 @@ module.exports = async function handler(req, res) {
   const mapped    = VMAP[variantId];
 
   if (!mapped) {
-    console.error("ls-webhook: unknown variantId", variantId, "for event", eventName);
+    console.error("ls-webhook: unknown variantId", variantId, "for event", eventName,
+      "| known variants:", Object.keys(variantMap()).filter(Boolean));
     return res.status(400).json({ error: "Unknown variant" });
   }
+
+  console.log("ls-webhook: variantId", variantId, "→ plan:", mapped.plan, "billing:", mapped.billing);
 
   // ── Determine plan expiry ─────────────────────────────────────────────────
   let planExpiry;
