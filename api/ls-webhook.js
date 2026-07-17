@@ -47,7 +47,7 @@ async function updateUser(userId, email, plan, planExpiry) {
       .from("users")
       .update(update)
       .eq("id", userId)
-      .select("id");                       // .select() makes zero-row matches detectable
+      .select("id, plan, plan_expiry");   // fetch updated row so we see what was written
     if (error) {
       console.error("ls-webhook: supabase error (by userId):", JSON.stringify(error));
       throw Object.assign(new Error("DB update failed"), { cause: error });
@@ -56,7 +56,7 @@ async function updateUser(userId, email, plan, planExpiry) {
       console.error("ls-webhook: no row matched users.id =", userId, "— falling back to email");
       // Fall through to email path below
     } else {
-      console.log("ls-webhook: updated", data.length, "row(s) by userId");
+      console.log("ls-webhook: update result by userId →", JSON.stringify(data));
       return;
     }
   }
@@ -67,7 +67,7 @@ async function updateUser(userId, email, plan, planExpiry) {
       .from("users")
       .update(update)
       .eq("email", email)
-      .select("id");
+      .select("id, plan, plan_expiry");   // fetch updated row so we see what was written
     if (error) {
       console.error("ls-webhook: supabase error (by email):", JSON.stringify(error));
       throw Object.assign(new Error("DB update failed"), { cause: error });
@@ -76,7 +76,7 @@ async function updateUser(userId, email, plan, planExpiry) {
       console.error("ls-webhook: no row matched users.email =", email);
       throw new Error("User not found in DB (neither by userId nor email)");
     }
-    console.log("ls-webhook: updated", data.length, "row(s) by email");
+    console.log("ls-webhook: update result by email →", JSON.stringify(data));
     return;
   }
 
@@ -119,14 +119,19 @@ module.exports = async function handler(req, res) {
   }
 
   const eventName = event.meta?.event_name;
+
+  // Dump full meta + top-level data attributes so we can verify custom_data path in logs.
+  console.log("ls-webhook: RAW meta     →", JSON.stringify(event.meta ?? {}));
+  console.log("ls-webhook: RAW attrs    →", JSON.stringify(event.data?.attributes ?? {}));
+
   if (!HANDLED_EVENTS.has(eventName)) {
     return res.status(200).json({ received: true });
   }
 
   const attrs = event.data?.attributes ?? {};
 
-  // Prefer Supabase user_id sent in checkout_data.custom; fall back to email.
-  // || null (not ??) so empty string "" from a missing session is also treated as absent.
+  // LS places checkout_data.custom in meta.custom_data for order events.
+  // For subscription events it also appears there, but log both paths for diagnosis.
   const userId = event.meta?.custom_data?.user_id || null;
   const email  = attrs.user_email || null;
 
